@@ -19,6 +19,9 @@ function makeEnemy(x) {
 }
 const first=makeEnemy(50),second=makeEnemy(100);
 enemies.enemies=[first,second];
+enemies.activeEnemies = new Set(enemies.enemies);
+enemies.spatialIndex.clear();
+enemies.enemies.forEach((enemy, i) => { enemy.collisionOrder = i; enemies.spatialIndex.update(enemy); });
 const weapons=new WeaponSystem(scene,player,weaponCatalog);
 weapons.lightningBehavior.fireChainLightning(weapons.weapons[0].effective,enemies);
 assert.equal(first.hp,0);
@@ -49,6 +52,9 @@ assert.equal(graphics.visible,false,'chain clears after last step');
 enemies.updateStatuses(500);
 assert.equal(kills,2,'death awards only once');
 const survivor=makeEnemy(50);survivor.hp=5;enemies.enemies=[survivor];
+enemies.activeEnemies = new Set(enemies.enemies);
+enemies.spatialIndex.clear();
+enemies.enemies.forEach((enemy, i) => { enemy.collisionOrder = i; enemies.spatialIndex.update(enemy); });
 weapons.lightningBehavior.fireChainLightning(weapons.weapons[0].effective,enemies);
 weapons.lightningBehavior.updateChain(500,enemies);
 assert.equal(weapons.lightningBehavior.activeChain,null,'chain ends if no next target exists');
@@ -65,6 +71,9 @@ const n=makeEnemy(0);n.sprite.y=-60;n.hp=100;
 const s=makeEnemy(0);s.sprite.y=60;s.hp=100;
 const e=makeEnemy(60);e.hp=100;
 enemies.enemies=[n,s,e];
+enemies.activeEnemies = new Set(enemies.enemies);
+enemies.spatialIndex.clear();
+enemies.enemies.forEach((enemy, i) => { enemy.collisionOrder = i; enemies.spatialIndex.update(enemy); });
 multi.lightningBehavior.fireChainLightning(multi.weapons[0].effective,enemies);
 assert.equal(multi.lightningBehavior.activeChains.length,3);
 assert.equal(new Set(multi.lightningBehavior.activeChains.map(c=>c.graphic.graphics)).size,3,'independent graphics');
@@ -83,6 +92,9 @@ console.log('Passed: independent chains, distinct initial hits, pooled cleanup, 
 
 const colorTarget=makeEnemy(50);colorTarget.hp=100;
 enemies.enemies=[colorTarget];
+enemies.activeEnemies = new Set(enemies.enemies);
+enemies.spatialIndex.clear();
+enemies.enemies.forEach((enemy, i) => { enemy.collisionOrder = i; enemies.spatialIndex.update(enemy); });
 colorTarget.sprite.setFillStyle(0x0088ff);
 enemies.stunEnemy(colorTarget,500);
 enemies.updateStatuses(499);

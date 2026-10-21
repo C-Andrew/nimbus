@@ -39,41 +39,49 @@ export function selectChainWave(origins, enemies, range, limit, excluded) {
   const selected = new Set(excluded);
   const links = [];
   for (let slot = 0; slot < limit; slot++) {
-    let best = null;
+    let bestEnemy = null, bestOrigin = null;
     let nearestSq = range * range;
     for (const enemy of enemies) {
       if (!enemy.sprite.active || selected.has(enemy)) continue;
       for (const origin of origins) {
         const dx=enemy.sprite.x-origin.x, dy=enemy.sprite.y-origin.y;
         const distanceSq=dx*dx+dy*dy;
-        if (distanceSq <= nearestSq) { nearestSq=distanceSq; best={enemy,origin}; }
+        if (distanceSq <= nearestSq) { nearestSq=distanceSq; bestEnemy=enemy; bestOrigin=origin; }
       }
     }
-    if (!best) break;
-    links.push(best);
-    selected.add(best.enemy);
+    if (!bestEnemy) break;
+    links.push({ enemy: bestEnemy, origin: bestOrigin });
+    selected.add(bestEnemy);
   }
   return links;
 }
 
 /** Nearest first, then prefer bearings furthest from already selected bolts. */
 export function selectLightningVolley(origin, enemies, range, count, separationDegrees) {
-  const candidates=enemies.filter(enemy=>enemy.sprite.active&&Math.hypot(enemy.sprite.x-origin.x,enemy.sprite.y-origin.y)<=range);
-  const selected=[],angles=[];
-  while(selected.length<count) {
-    let best=null,bestSeparation=-1,bestDistance=Infinity,bestAngle=0;
-    for(const enemy of candidates) {
-      if(selected.includes(enemy))continue;
-      const dx=enemy.sprite.x-origin.x,dy=enemy.sprite.y-origin.y;
-      const distance=dx*dx+dy*dy,angle=Math.atan2(dy,dx);
-      const separation=angles.length?Math.min(...angles.map(other=>Math.abs(Math.atan2(Math.sin(angle-other),Math.cos(angle-other))))):Math.PI;
-      if(angles.length&&separation+1e-10<separationDegrees*Math.PI/180)continue;
-      if(separation>bestSeparation||(separation===bestSeparation&&distance<bestDistance)) {
-        best=enemy;bestSeparation=separation;bestDistance=distance;bestAngle=angle;
-      }
+  const candidates = [];
+  const rangeSq = range * range, minimumAngle = separationDegrees * Math.PI / 180;
+  for (const enemy of enemies) {
+    if (!enemy.sprite.active) continue;
+    const dx = enemy.sprite.x - origin.x, dy = enemy.sprite.y - origin.y;
+    const distance = dx * dx + dy * dy;
+    if (distance <= rangeSq) candidates.push({ enemy, distance, angle: Math.atan2(dy, dx), separation: Math.PI, chosen: false });
+  }
+  const selected = [];
+  while (selected.length < count) {
+    let best = null;
+    for (const candidate of candidates) {
+      if (candidate.chosen || (selected.length > 0 && candidate.separation + 1e-10 < minimumAngle)) continue;
+      if (!best || candidate.separation > best.separation + 1e-12
+        || (Math.abs(candidate.separation - best.separation) <= 1e-12 && candidate.distance < best.distance)) best = candidate;
     }
-    if(!best)break;
-    selected.push(best);angles.push(bestAngle);
+    if (!best) break;
+    best.chosen = true;
+    selected.push(best.enemy);
+    // Maintain the closest selected bearing incrementally. No nested trig or maps.
+    for (const candidate of candidates) {
+      const difference = Math.abs(candidate.angle - best.angle);
+      candidate.separation = Math.min(candidate.separation, difference, Math.PI * 2 - difference);
+    }
   }
   return selected;
 }

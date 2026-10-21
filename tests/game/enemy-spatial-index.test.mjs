@@ -14,6 +14,7 @@ function drawable(x = 0, y = 0) {
     setPosition(x, y) { this.x = x; this.y = y; return this; },
     setActive(active) { this.active = active; return this; },
     setVisible() { return this; }, setOrigin() { return this; }, setDepth() { return this; },
+    destroy() { this.destroyed = true; },
     setRadius() { return this; }, setTo() { return this; }, setSize() { return this; },
     setFillStyle() { return this; }, setStrokeStyle() { return this; },
     setFontSize() { return this; }, setColor() { return this; }, setText() { return this; },
@@ -24,7 +25,7 @@ function makeSpawner() {
     scale: { width: 800, height: 600 }, registry: { get: () => 'In-Game' },
     add: { circle: drawable, triangle: drawable, rectangle: drawable, text: drawable },
   };
-  return new EnemySpawner(scene, { x: 0, y: 0 }, catalog);
+  return new EnemySpawner(scene, { x: 0, y: 0 }, catalog, () => {}, drawable);
 }
 
 // A fixed seed makes the full-scan equivalence checks repeatable.
@@ -138,4 +139,22 @@ test('local queries exclude distant enemies in a large population', () => {
   for (let i = 0; i < 2000; i++) grid.update({ sprite: drawable(i * 256, 0) });
   const candidates = grid.querySegment(-20, 0, 20, 0, 8, []);
   assert.equal(candidates.length, 1, 'one nearby candidate instead of 2,000 full-scan checks');
+});
+
+
+test('three 2,000-enemy lifecycle cycles trim inactive objects and restore reusable pools', () => {
+  const spawner = makeSpawner();
+  for (let run = 0; run < 3; run++) {
+    for (let i = 0; i < 2000; i++) spawner.spawn(i % 2 ? 'stationary' : 'splitter', { x: i, y: 0 });
+    assert.equal(spawner.activeEnemies.size, 2000);
+    assert.equal(spawner.packedSnapshot().values.length, 10000);
+    for (const enemy of spawner.activeEnemies) spawner.recycle(enemy);
+    assert.equal(spawner.activeEnemies.size, 0);
+    assert.equal(spawner.spatialIndex.locations.size, 0);
+    const before = [...spawner.enemies];
+    spawner.reset();
+    assert.equal(spawner.enemies.length, 128, 'retains at most 64 idle enemies per shape');
+    assert.equal(before.filter(enemy => enemy.sprite.destroyed).length, 1872);
+    assert.equal(spawner.snapshot().length, 0);
+  }
 });

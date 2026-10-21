@@ -1,8 +1,12 @@
 import { SaveStore } from '../storage/save-store.js';
+import { CheckpointWriter } from '../storage/checkpoint-writer.js';
 import { GameState } from '../game/run/run-state.js';
 
 export function createSaveController(ui, getRun) {
   let saveStore = null;
+  let checkpointWriter = null;
+  let checkpointTask = null;
+  let checkpointRequested = false;
   let storageReady = false;
   let pendingCheckpoint = null;
   const reportSaveError = error => { console.error(error); ui.saveStatus.textContent = 'Save failed. Progress may not be stored. Export a backup or retry.'; };
@@ -16,6 +20,7 @@ export function createSaveController(ui, getRun) {
     try {
       saveStore = new SaveStore();
       await saveStore.open();
+      checkpointWriter = new CheckpointWriter(saveStore);
       pendingCheckpoint = await saveStore.checkpoint();
       storageReady = true;
       await refreshStats();
@@ -32,13 +37,22 @@ export function createSaveController(ui, getRun) {
     const state = game.registry.get('state');
     if (![GameState.IN_GAME, GameState.PAUSED, GameState.LEVEL_UP].includes(state)) return null;
     const scene = game.scene.getScene('prototype');
-    return {id:runId,durationMs:runTimer.elapsed(),kills:scene.enemies.kills,scene:scene.snapshot()};
+    return {id:runId,durationMs:runTimer.elapsed(),kills:scene.enemies.kills,scene:scene.snapshot({ packedEnemies: true })};
   }
-  async function saveCheckpoint() {
-    const data = checkpointData();
-    if (!data || !storageReady) return;
-    try { await saveStore.saveCheckpoint(data); ui.saveStatus.textContent = 'Progress saved locally'; }
-    catch (error) { reportSaveError(error); }
+  function saveCheckpoint() {
+    if (!storageReady) return Promise.resolve();
+    checkpointRequested = true;
+    if (checkpointTask) return checkpointTask;
+    checkpointTask = (async () => {
+      do {
+        checkpointRequested = false;
+        const data = checkpointData();
+        if (!data) continue;
+        await checkpointWriter.save(data);
+        ui.saveStatus.textContent = 'Progress saved locally';
+      } while (checkpointRequested);
+    })().catch(reportSaveError).finally(() => { checkpointTask = null; });
+    return checkpointTask;
   }
   async function finishRun() {
     const { game, runId, runTimer } = getRun();
@@ -50,6 +64,8 @@ export function createSaveController(ui, getRun) {
       return;
     }
     try {
+      // Drain any older checkpoint before committing the completed run.
+      await checkpointTask;
       await saveStore.finalizeRun({id:runId,durationMs:runTimer.elapsed(),kills:game.scene.getScene('prototype').enemies.kills,progression:game.scene.getScene('prototype').progression.snapshot(),endedAt:new Date().toISOString()});
       ui.saveStatus.textContent = 'Run saved locally';
       await refreshStats();

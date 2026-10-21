@@ -23,6 +23,9 @@ const spawner=new EnemySpawner({}, {},enemyCatalog, xp=>{rewards++;total+=xp;});
 const sprite={x:0,y:0,active:true,setActive(value){this.active=value;return this;},setVisible(){return this;}};
 const label={setText(){return this;},setVisible(){return this;}};
 spawner.enemies=[{sprite,label,type,hp:2,collisionOrder:0}];
+spawner.activeEnemies = new Set(spawner.enemies);
+spawner.spatialIndex.clear();
+spawner.enemies.forEach((enemy, i) => { enemy.collisionOrder = i; spawner.spatialIndex.update(enemy); });
 // This fixture bypasses spawn(), so register its collider explicitly.
 spawner.spatialIndex.update(spawner.enemies[0]);
 assert(spawner.hitTest(-30,0,30,0,1,1));

@@ -30,6 +30,8 @@ export class StraightProjectile {
     shot.remainingMs = stats.lifetimeMs;
   }
   update(delta, enemies) {
+    const { width, height } = this.scene.scale;
+    const bounds = centeredViewport(this.player, width, height);
     for (const shot of this.projectiles) {
       if (!shot.sprite.active) continue;
       const fromX = shot.sprite.x, fromY = shot.sprite.y;
@@ -41,8 +43,7 @@ export class StraightProjectile {
         if (![GameState.IN_GAME, GameState.READY].includes(this.scene.registry.get('state'))) return;
         continue;
       }
-      const { width, height } = this.scene.scale;
-      if (shot.remainingMs <= 0 || isOutsideViewport(shot.sprite, centeredViewport(this.player, width, height), 24)) {
+      if (shot.remainingMs <= 0 || isOutsideViewport(shot.sprite, bounds, 24)) {
         shot.sprite.setActive(false).setVisible(false);
       }
     }

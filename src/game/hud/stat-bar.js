@@ -1,3 +1,5 @@
+import { createHudText } from './hud-text.js';
+
 /** Screen-fixed stat bar updated only on value or layout changes. */
 export class StatBar {
   constructor(scene, color) {
@@ -7,8 +9,7 @@ export class StatBar {
       .setOrigin(0,0.5).setStrokeStyle(1,0x53636c).setScrollFactor(0).setDepth(3);
     this.fill = scene.add.rectangle(20,0,1,18,color,0.85)
       .setOrigin(0,0.5).setScrollFactor(0).setDepth(4).setVisible(false);
-    this.label = scene.add.text(28,0,'',{fontFamily:'monospace',fontSize:'12px',color:'#ffffff'})
-      .setOrigin(0,0.5).setScrollFactor(0).setDepth(5);
+    this.label = createHudText(scene,28,0,'',{fontSize:'14px',color:'#ffffff'}).setOrigin(0,0.5);
   }
   setValue(value, maximum, text, color) {
     this.ratio = maximum > 0 ? Math.max(0,Math.min(1,value/maximum)) : 0;

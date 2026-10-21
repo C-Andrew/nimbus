@@ -6,6 +6,7 @@ import { emptyUpgradeTiers, validUpgradeTiers, normalizeUpgradeTiers, effectiveW
 export class WeaponSystem {
   constructor(scene, player, catalog) {
     this.catalog = catalog;
+    this.loadoutVersion = 0;
     this.definitions = catalog.definitions;
     this.scene = scene;
     this.player = player;
@@ -23,6 +24,7 @@ export class WeaponSystem {
     try { effective = effectiveWeapon(definition, tiers); } catch { return false; }
     const maxFireTier = Math.ceil((definition.stats.intervalMs - definition.upgrades['fire-rate'].minimumIntervalMs) / definition.upgrades['fire-rate'].intervalReductionMs);
     if (tiers['fire-rate'] > maxFireTier) return false;
+    this.loadoutVersion++;
     this.weapons.push({ definition, tiers: {...tiers}, effective, elapsedMs: 0 });
     return true;
   }
@@ -40,6 +42,7 @@ export class WeaponSystem {
     this.lightningBehavior.reset();
     this.projectileBehavior.reset();
     this.weapons = [];
+    this.loadoutVersion++;
     for (const id of this.catalog.startingWeapons) this.equip(id);
   }
   update(delta, facing, enemies) {

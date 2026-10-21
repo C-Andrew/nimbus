@@ -53,10 +53,10 @@ export function createPlayScene({ playerConfig, weaponCatalog, enemyCatalog }, o
         this.scale.off('resize', this.drawGrid, this);
       });
     }
-    snapshot() {
+    snapshot({ packedEnemies = false } = {}) {
       return { pendingLevelUps:this.pendingLevelUps, upgradeWeaponId:this.upgradeWeaponId, progression: this.progression.snapshot(), player: {x:this.player.x,y:this.player.y,health:this.health.snapshot()}, facing:{...this.facing},
         weapons:this.weapons.weapons.map(w=>({id:w.definition.id,elapsedMs:w.elapsedMs,upgrades:{...w.tiers}})),
-        enemies:this.enemies.snapshot(),spawnElapsedMs:this.enemies.elapsedMs,spawnRunElapsedMs:this.enemies.runElapsedMs };
+        enemies:packedEnemies ? this.enemies.packedSnapshot() : this.enemies.snapshot(),spawnElapsedMs:this.enemies.elapsedMs,spawnRunElapsedMs:this.enemies.runElapsedMs };
     }
     restoreRun(checkpoint) {
       this.resetRun();

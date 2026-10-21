@@ -5,7 +5,8 @@ export function createGame(parent, catalogs, onReady) {
   const PlayScene = createPlayScene(catalogs, onReady);
   return new Phaser.Game({
     type: Phaser.AUTO, parent, backgroundColor: '#10151c',
-    antialias: false,
+    antialias: true,
+    roundPixels: true,
     fps: { target: 60, limit: 60 },
     scale: { mode: Phaser.Scale.RESIZE, width: parent.clientWidth, height: parent.clientHeight },
     scene: PlayScene,

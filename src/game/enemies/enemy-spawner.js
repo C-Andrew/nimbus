@@ -4,18 +4,25 @@ import { ENEMY_BEHAVIORS } from './enemy-behaviors.js';
 import { centeredViewport, findWorldSpawnPosition, isOutsideViewport } from '../world/world-geometry.js';
 import { enemyTouchesCircle, projectileContactTime } from './enemy-collisions.js';
 import { EnemySpatialIndex } from './enemy-spatial-index.js';
+import { createHitpointLabel } from './hitpoint-label.js';
 
 const colorValue = value => Number.parseInt(value.slice(1), 16);
 
 export class EnemySpawner {
-  constructor(scene, player, catalog, onKill = () => {}) {
+  constructor(scene, player, catalog, onKill = () => {}, createLabel = createHitpointLabel) {
     this.catalog = catalog;
     this.definitions = catalog.definitions;
     this.spawnConfig = catalog.spawner;
     this.scene = scene;
     this.onKill = onKill;
+    this.createLabel = createLabel;
     this.player = player;
     this.enemies = [];
+    this.activeEnemies = new Set();
+    this.freeEnemies = new Map();
+    this.nextCollisionOrder = 0;
+    this.typeIds = [...this.definitions.keys()];
+    this.typeCodes = new Map(this.typeIds.map((id, index) => [id, index]));
     this.spatialIndex = new EnemySpatialIndex(this.definitions);
     this.collisionCandidates = [];
     this.kills = 0;
@@ -31,7 +38,7 @@ export class EnemySpawner {
     const spawnRadius = (appearance.shape === 'circle' ? appearance.radiusPixels : Math.max(appearance.widthPixels,appearance.heightPixels)/2) + appearance.strokeWidthPixels/2;
     const p = position ?? findWorldSpawnPosition(bounds, this.player, spawnRadius, this.spawnConfig.minimumDistanceScreenWidthRatio, Math.random, this.spawnConfig.offscreenMarginPixels);
     if (!p) return false; // Wait for a valid viewport before automatic spawning.
-    let enemy = this.enemies.find(e => !e.sprite.active && e.type.appearance.shape === appearance.shape);
+    let enemy = this.freeEnemies.get(appearance.shape)?.pop();
     if (!enemy) {
       enemy = {
         sprite: appearance.shape === 'circle'
@@ -39,9 +46,9 @@ export class EnemySpawner {
         : appearance.shape === 'triangle'
         ? this.scene.add.triangle(0,0,appearance.widthPixels/2,0,appearance.widthPixels,appearance.heightPixels,0,appearance.heightPixels,colorValue(appearance.color))
         : this.scene.add.rectangle(0,0,appearance.widthPixels,appearance.heightPixels,colorValue(appearance.color)),
-        label: this.scene.add.text(0, 0, '', { fontFamily: 'monospace', fontSize: `${appearance.hitpointFontSizePixels}px`, color: appearance.hitpointTextColor }).setOrigin(0.5).setDepth(2),
+        label: this.createLabel(this.scene),
       };
-      enemy.collisionOrder = this.enemies.length;
+      enemy.collisionOrder = this.nextCollisionOrder++;
       this.enemies.push(enemy);
     }
     enemy.type = type;
@@ -57,6 +64,7 @@ export class EnemySpawner {
     enemy.sprite.setStrokeStyle(appearance.strokeWidthPixels, colorValue(appearance.strokeColor));
     enemy.label.setFontSize(appearance.hitpointFontSizePixels).setColor(appearance.hitpointTextColor);
     enemy.label.setPosition(p.x, p.y).setText(String(enemy.hp)).setVisible(appearance.showHitpoints);
+    this.activeEnemies.add(enemy);
     this.spatialIndex.update(enemy);
     return enemy;
   }
@@ -65,7 +73,7 @@ export class EnemySpawner {
   }
   updateStatuses(delta) {
     const initialState = this.scene.registry?.get('state');
-    for (const enemy of this.enemies) {
+    for (const enemy of this.activeEnemies) {
       if (!enemy.sprite.active || !(enemy.stunRemainingMs > 0)) continue;
       enemy.stunRemainingMs = Math.max(0,enemy.stunRemainingMs-delta);
       if (enemy.stunRemainingMs === 0 && enemy.hp > 0) {
@@ -84,11 +92,9 @@ export class EnemySpawner {
     const bounds = centeredViewport(this.player, width, height);
     // Recycle distant abandoned enemies so travel does not grow memory forever.
     const margin = Math.max(width, height) * 2;
-    for (const enemy of this.enemies) {
+    for (const enemy of this.activeEnemies) {
       if (enemy.sprite.active && !(enemy.stunRemainingMs > 0) && isOutsideViewport(enemy.sprite, bounds, margin)) {
-        enemy.sprite.setActive(false).setVisible(false);
-        enemy.label.setVisible(false);
-        this.spatialIndex.remove(enemy);
+        this.recycle(enemy);
       }
       if (!enemy.sprite.active) continue;
       if (enemy.stunRemainingMs > 0) continue;
@@ -139,8 +145,11 @@ export class EnemySpawner {
   }
   damageEnemy(enemy, damage) {
     if (!enemy.sprite.active) return false;
-    enemy.hp = Math.max(0, enemy.hp - damage);
-    enemy.label.setText(String(enemy.hp));
+    const hp = Math.max(0, enemy.hp - damage);
+    if (hp !== enemy.hp) {
+      enemy.hp = hp;
+      enemy.label.setText(String(hp));
+    }
     if (enemy.hp === 0 && !(enemy.stunRemainingMs > 0)) this.finishDeath(enemy);
     return true;
   }
@@ -151,9 +160,7 @@ export class EnemySpawner {
     const x=enemy.sprite.x, y=enemy.sprite.y;
     const xp=rollXpReward(enemy.type.rewards.xp);
     this.kills++;
-    enemy.sprite.setActive(false).setVisible(false);
-    enemy.label.setVisible(false);
-    this.spatialIndex.remove(enemy);
+    this.recycle(enemy);
     if(deathEffect?.type==='spawn-enemies') {
       const rotation=Math.random()*Math.PI*2;
       for(let i=0;i<deathEffect.count;i++) {
@@ -167,8 +174,40 @@ export class EnemySpawner {
     // Emit after children exist so an XP-triggered checkpoint is consistent.
     this.onKill(xp);
   }
+  recycle(enemy) {
+    if (!enemy.sprite.active) return;
+    enemy.sprite.setActive(false).setVisible(false);
+    enemy.label.setVisible(false);
+    this.activeEnemies.delete(enemy);
+    this.spatialIndex.remove(enemy);
+    const shape = enemy.type.appearance.shape;
+    let free = this.freeEnemies.get(shape);
+    if (!free) this.freeEnemies.set(shape, free = []);
+    free.push(enemy);
+  }
+  nearby(x, y, radius, result) {
+    return this.nearbyBounds(x - radius, y - radius, x + radius, y + radius, result);
+  }
+  nearbyBounds(left, top, right, bottom, result) {
+    this.spatialIndex.queryBounds(left, top, right, bottom, result);
+    // Preserve the pool-order tie semantics of the original targeting helpers.
+    result.sort((a, b) => a.collisionOrder - b.collisionOrder);
+    return result;
+  }
   snapshot() {
-    return this.enemies.filter(e=>e.sprite.active).map(e=>({id:e.type.id,x:e.sprite.x,y:e.sprite.y,hp:e.hp,stunRemainingMs:e.stunRemainingMs ?? 0}));
+    return Array.from(this.activeEnemies, e => ({id:e.type.id,x:e.sprite.x,y:e.sprite.y,hp:e.hp,stunRemainingMs:e.stunRemainingMs ?? 0}));
+  }
+  packedSnapshot() {
+    const values = new Float64Array(this.activeEnemies.size * 5);
+    let offset = 0;
+    for (const enemy of this.activeEnemies) {
+      values[offset++] = this.typeCodes.get(enemy.type.id);
+      values[offset++] = enemy.sprite.x;
+      values[offset++] = enemy.sprite.y;
+      values[offset++] = enemy.hp;
+      values[offset++] = enemy.stunRemainingMs ?? 0;
+    }
+    return { typeIds: this.typeIds, values };
   }
   restore(entries) {
     this.reset();
@@ -184,12 +223,22 @@ export class EnemySpawner {
   reset() {
     this.spatialIndex.clear();
     this.collisionCandidates.length = 0;
+    this.activeEnemies.clear();
+    this.freeEnemies.clear();
     this.kills = 0;
     this.runElapsedMs = 0;
+    const retained = [];
+    // Trim historical peaks between runs, never remove living enemies to cap load.
     for (const enemy of this.enemies) {
       enemy.sprite.setActive(false).setVisible(false);
       enemy.label.setVisible(false);
+      const shape = enemy.type.appearance.shape;
+      let free = this.freeEnemies.get(shape);
+      if (!free) this.freeEnemies.set(shape, free = []);
+      if (free.length < 64) { free.push(enemy); retained.push(enemy); }
+      else { enemy.sprite.destroy(); enemy.label.destroy(); }
     }
+    this.enemies = retained;
     this.elapsedMs = this.spawnConfig.spawnImmediately ? this.spawnConfig.intervalMs : 0;
   }
 }

@@ -1,5 +1,6 @@
 import { nearestExit } from '../../ui/ready-transition.js';
 import { StatBar } from './stat-bar.js';
+import { createHudText } from './hud-text.js';
 import { GameState } from '../run/run-state.js';
 
 
@@ -14,12 +15,11 @@ export class GameHud {
       icon:scene.add.image(38+index*44,scene.scale.height-32,'__WHITE').setDisplaySize(28,28).setVisible(false).setScrollFactor(0).setDepth(4),
     }));
     this.renderWeapons();
-    scene.readout = scene.add.text(18, 90, '', { fontFamily: 'monospace', fontSize: '13px', color: '#bded85' });
-    scene.help = scene.add.text(18, 116, 'Press Play Game to begin', { fontFamily: 'sans-serif', fontSize: '12px', color: '#a7b0bd' });
+    scene.readout = createHudText(scene, 18, 90, '', { fontSize: '14px', color: '#bded85' });
+    scene.help = createHudText(scene, 18, 116, 'Press Play Game to begin', { fontSize: '14px', color: '#c4cdd8' });
     this.healthBar = new StatBar(scene,0x83d96f);
     this.xpBar = new StatBar(scene,0x329dff);
-    scene.progressionHud = scene.add.text(18,scene.scale.height-143,'',{fontFamily:'monospace',fontSize:'11px',color:'#c4d2da'}).setDepth(5);
-    for (const hud of [scene.readout, scene.help, scene.progressionHud]) hud.setScrollFactor(0);
+    scene.progressionHud = createHudText(scene,18,scene.scale.height-143,'',{fontSize:'14px',color:'#d7e2e9'});
   }
   renderState(state, leavingReady = false, previous) {
     const scene = this.scene;
@@ -115,7 +115,7 @@ export class GameHud {
   }
   renderWeapons() {
     const weapons=this.scene.weapons.weapons;
-    const signature=weapons.map(w=>w.definition.id).join('|');
+    const signature=this.scene.weapons.loadoutVersion;
     if(signature===this.weaponSignature)return;
     this.weaponSignature=signature;
     this.weaponSlots.forEach((slot,index)=>{

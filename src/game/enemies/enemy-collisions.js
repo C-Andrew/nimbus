@@ -1,39 +1,41 @@
 import { circlesOverlap } from '../player/player-health.js';
 
-function triangleVertices(enemy) {
-  const {widthPixels:w,heightPixels:h}=enemy.type.appearance;
-  const {x,y}=enemy.sprite;
-  return [{x,y:y-h/2},{x:x+w/2,y:y+h/2},{x:x-w/2,y:y+h/2}];
-}
-function edgeCross(a,b,x,y) { return (b.x-a.x)*(y-a.y)-(b.y-a.y)*(x-a.x); }
-function triangleTouchesCircle(enemy,center,radius) {
-  const vertices=triangleVertices(enemy);
-  let inside=true;
-  for(let i=0;i<3;i++) {
-    const a=vertices[i],b=vertices[(i+1)%3];
-    if(edgeCross(a,b,center.x,center.y)<0)inside=false;
-    const dx=b.x-a.x,dy=b.y-a.y;
-    const t=Math.max(0,Math.min(1,((center.x-a.x)*dx+(center.y-a.y)*dy)/(dx*dx+dy*dy)));
-    if((center.x-a.x-t*dx)**2+(center.y-a.y-t*dy)**2<=radius*radius)return true;
+function triangleTouchesCircle(enemy, center, radius) {
+  const { widthPixels: w, heightPixels: h } = enemy.type.appearance;
+  const x = enemy.sprite.x, y = enemy.sprite.y;
+  let inside = true;
+  for (let i = 0; i < 3; i++) {
+    const ax = i === 0 ? x : i === 1 ? x + w / 2 : x - w / 2;
+    const ay = i === 0 ? y - h / 2 : y + h / 2;
+    const bx = i === 0 ? x + w / 2 : i === 1 ? x - w / 2 : x;
+    const by = i === 2 ? y - h / 2 : y + h / 2;
+    const dx = bx - ax, dy = by - ay;
+    if (dx * (center.y - ay) - dy * (center.x - ax) < 0) inside = false;
+    const t = Math.max(0, Math.min(1, ((center.x - ax) * dx + (center.y - ay) * dy) / (dx * dx + dy * dy)));
+    if ((center.x - ax - t * dx) ** 2 + (center.y - ay - t * dy) ** 2 <= radius * radius) return true;
   }
   return inside;
 }
-function triangleContactTime(enemy,fromX,fromY,toX,toY,radius) {
-  const vertices=triangleVertices(enemy);
-  let enter=0,exit=1;
-  for(let i=0;i<3;i++) {
-    const a=vertices[i],b=vertices[(i+1)%3];
-    const start=edgeCross(a,b,fromX,fromY);
-    const change=edgeCross(a,b,toX,toY)-start;
-    const bound=-radius*Math.hypot(b.x-a.x,b.y-a.y);
-    if(change===0) {if(start<bound)return null;continue;}
-    const t=(bound-start)/change;
-    if(change>0)enter=Math.max(enter,t);else exit=Math.min(exit,t);
-    if(enter>exit)return null;
+function triangleContactTime(enemy, fromX, fromY, toX, toY, radius) {
+  const { widthPixels: w, heightPixels: h } = enemy.type.appearance;
+  const x = enemy.sprite.x, y = enemy.sprite.y;
+  let enter = 0, exit = 1;
+  for (let i = 0; i < 3; i++) {
+    const ax = i === 0 ? x : i === 1 ? x + w / 2 : x - w / 2;
+    const ay = i === 0 ? y - h / 2 : y + h / 2;
+    const bx = i === 0 ? x + w / 2 : i === 1 ? x - w / 2 : x;
+    const by = i === 2 ? y - h / 2 : y + h / 2;
+    const dx = bx - ax, dy = by - ay;
+    const start = dx * (fromY - ay) - dy * (fromX - ax);
+    const change = (dx * (toY - ay) - dy * (toX - ax)) - start;
+    const bound = -radius * Math.hypot(dx, dy);
+    if (change === 0) { if (start < bound) return null; continue; }
+    const t = (bound - start) / change;
+    if (change > 0) enter = Math.max(enter, t); else exit = Math.min(exit, t);
+    if (enter > exit) return null;
   }
   return enter;
 }
-
 
 export function enemyTouchesCircle(enemy, center, radius) {
   const shape = enemy.type.appearance;
@@ -52,7 +54,10 @@ export function projectileContactTime(enemy, fromX, fromY, toX, toY, projectileR
   if (shape.shape === 'rectangle') {
     // Sweep against an expanded box, using the projectile's collision radius.
     let enter=0, exit=1;
-    for (const [start, delta, center, half] of [[fromX,dx,enemy.sprite.x,shape.widthPixels/2],[fromY,dy,enemy.sprite.y,shape.heightPixels/2]]) {
+    for (let axis = 0; axis < 2; axis++) {
+      const start = axis === 0 ? fromX : fromY, delta = axis === 0 ? dx : dy;
+      const center = axis === 0 ? enemy.sprite.x : enemy.sprite.y;
+      const half = (axis === 0 ? shape.widthPixels : shape.heightPixels) / 2;
       const min=center-half-projectileRadius, max=center+half+projectileRadius;
       if (delta===0) { if(start<min||start>max)return null; continue; }
       const a=(min-start)/delta, b=(max-start)/delta;

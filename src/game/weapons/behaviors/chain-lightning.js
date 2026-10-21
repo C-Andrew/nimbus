@@ -3,12 +3,13 @@ import { selectLightningVolley, selectChainWave, lightningHopColor } from './lig
 export class ChainLightning {
   constructor(scene, player) {
     this.scene = scene; this.player = player;
-    this.chainPool = []; this.activeChains = [];
+    this.chainPool = []; this.activeChains = []; this.candidates = [];
   }
   get activeChain() { return this.activeChains[0] ?? null; }
   fireChainLightning(definition, enemies) {
     if (this.activeChains.length) return;
-    const targets = selectLightningVolley(this.player,enemies.enemies,definition.stats.targetRangePixels,definition.stats.projectileCount,definition.stats.initialDirectionSeparationDegrees);
+    const candidates = enemies.nearby(this.player.x, this.player.y, definition.stats.targetRangePixels, this.candidates);
+    const targets = selectLightningVolley(this.player,candidates,definition.stats.targetRangePixels,definition.stats.projectileCount,definition.stats.initialDirectionSeparationDegrees);
     for (const target of targets) {
       let graphic=this.chainPool.find(item=>!item.inUse);
       if(!graphic) {graphic={inUse:false,graphics:this.scene.add.graphics().setDepth(2)};this.chainPool.push(graphic);}
@@ -39,14 +40,25 @@ export class ChainLightning {
   }
   updateChain(delta,enemies) {
     if (!enemies) return;
-    for (const chain of [...this.activeChains]) this.advanceChain(delta,enemies,chain);
+    for (let i = 0; i < this.activeChains.length;) {
+      const chain = this.activeChains[i];
+      this.advanceChain(delta, enemies, chain);
+      if (this.activeChains[i] === chain) i++;
+    }
   }
   advanceChain(delta,enemies,chain) {
     chain.elapsedMs+=delta;
     if (chain.elapsedMs < chain.definition.stats.jumpDelayMs) return;
     if (chain.remainingJumps > 0) {
       const limit=Math.min(chain.hop+1,chain.definition.stats.maxTargetsPerJump);
-      const links=selectChainWave(chain.frontier,enemies.enemies,chain.definition.stats.jumpRangePixels,limit,chain.visited);
+      const range = chain.definition.stats.jumpRangePixels;
+      let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
+      for (const origin of chain.frontier) {
+        left = Math.min(left, origin.x - range); top = Math.min(top, origin.y - range);
+        right = Math.max(right, origin.x + range); bottom = Math.max(bottom, origin.y + range);
+      }
+      const candidates = enemies.nearbyBounds(left, top, right, bottom, this.candidates);
+      const links=selectChainWave(chain.frontier,candidates,range,limit,chain.visited);
       if(links.length) {
         chain.remainingJumps--;
         const frontier=[];
