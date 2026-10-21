@@ -1,0 +1,45 @@
+import { readFile } from 'node:fs/promises';
+import { validatePlayerConfig } from '../../src/game/player/player-config.js';
+import assert from 'node:assert/strict';
+import { PlayerHealth, circlesOverlap } from '../../src/game/player/player-health.js';
+import { validateCheckpoint } from '../../src/storage/save-schema.js';
+
+const config = validatePlayerConfig(JSON.parse(await readFile(new URL('../../src/data/player.json', import.meta.url), 'utf8')));
+const health = new PlayerHealth(config.stats);
+assert.equal(health.hp, 10);
+assert(health.takeDamage(1));
+assert.equal(health.hp, 9);
+for (let i = 0; i < 59; i++) {
+  health.advance(1000 / 60);
+  assert.equal(health.takeDamage(1), false);
+}
+health.advance(20);
+assert(health.takeDamage(1));
+assert.equal(health.hp, 8);
+const saved = health.snapshot();
+const restored = new PlayerHealth(config.stats);
+restored.restore(saved);
+assert.deepEqual(restored.snapshot(), saved);
+assert.equal(restored.takeDamage(1), false, 'restore preserves immunity');
+restored.advance(1000);
+assert(restored.takeDamage(100));
+assert.equal(restored.hp, 0, 'lethal damage clamps at zero');
+assert.equal(restored.takeDamage(1), false);
+restored.reset();
+assert.equal(restored.hp, 10);
+assert.equal(restored.invulnerabilityMs, 0);
+restored.restore(undefined);
+assert.equal(restored.hp, 10, 'legacy checkpoints default to full HP');
+assert.throws(() => restored.restore({ hp: 11, invulnerabilityMs: 0 }));
+assert.throws(() => restored.takeDamage(-1));
+assert(circlesOverlap({x:0,y:0},13,{x:29,y:0},16));
+assert(!circlesOverlap({x:0,y:0},13,{x:30,y:0},16));
+const checkpoint = {id:'health-test',durationMs:10,kills:0,scene:{player:{x:10,y:10,health:saved},facing:{x:0,y:-1},weapons:[],enemies:[],spawnElapsedMs:0}};
+validateCheckpoint(checkpoint);
+assert.throws(()=>validateCheckpoint({...checkpoint,scene:{...checkpoint.scene,player:{x:10,y:10,health:{hp:0,invulnerabilityMs:0}}}}));
+const stronger = new PlayerHealth({...config.stats, maxHitpoints: 20, contactInvulnerabilityMs: 200});
+assert.equal(stronger.hp, 20);
+stronger.takeDamage(1);
+assert.equal(stronger.invulnerabilityMs, 200);
+assert.throws(()=>validatePlayerConfig({...config, stats:{...config.stats,movementSpeedPixelsPerSecond:-1}}));
+console.log('Passed: health, contact boundaries, cooldown, lethal damage, reset, checkpoint restore and validation.');

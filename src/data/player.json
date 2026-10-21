@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "player",
+  "name": "Player",
+  "description": "The player character. Starts each run at full health with the starting weapons defined in the weapon catalog.",
+  "stats": {
+    "maxHitpoints": 10,
+    "movementSpeedPixelsPerSecond": 100,
+    "contactInvulnerabilityMs": 1000,
+    "collisionRadiusPixels": 13
+  },
+  "initialPosition": {
+    "x": 0,
+    "y": 0
+  },
+  "initialFacing": {
+    "x": 0,
+    "y": -1
+  },
+  "controls": {
+    "touchDeadzonePixels": 8
+  },
+  "appearance": {
+    "color": "#bded85",
+    "strokeColor": "#e5ffc7",
+    "strokeWidthPixels": 3,
+    "facingMarkerColor": "#83f5ff",
+    "facingMarkerOffsetPixels": 20,
+    "invulnerableAlpha": 0.55,
+    "lowHealthThresholdHitpoints": 3
+  },
+  "progression": {
+    "xpPerLevel": 100
+  }
+}

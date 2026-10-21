@@ -1,0 +1,17 @@
+{
+  "name": "nimbus",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Nimbus browser game scaffold",
+  "scripts": {
+    "dev": "python3 scripts/dev.py",
+    "test": "node --test tests/app/*.mjs tests/game/*.mjs tests/game/weapons/*.mjs tests/storage/*.mjs"
+  },
+  "dependencies": {
+    "phaser": "4.2.1"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "6.2.6"
+  },
+  "type": "module"
+}

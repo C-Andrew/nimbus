@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { EnemySpawner } from '../../src/game/enemies/enemy-spawner.js';
+const data=JSON.parse(await readFile(new URL('../../src/data/enemies.json',import.meta.url),'utf8'));
+const definitions=new Map(data.enemies.map(enemy=>[enemy.id,enemy]));
+const type=definitions.get('splitter');
+assert(type.stats.maxHitpoints>0);
+assert.equal(type.appearance.shape,'triangle');
+assert.equal(type.appearance.color,'#50c878');
+let children=[],rewardCount=0;
+const spawner=new EnemySpawner({}, {}, {...data,definitions},()=>{rewardCount++;assert.equal(children.length,type.onDeath.count,'children exist before XP callback');});
+spawner.spawn=(id,position)=>{children.push({id,position});return true;};
+function parent() {
+ return {type,hp:type.stats.maxHitpoints,stunRemainingMs:0,sprite:{x:-500,y:700,active:true,setActive(v){this.active=v;return this;},setVisible(){return this;}},label:{setText(){return this;},setVisible(){return this;}}};
+}
+let enemy=parent();
+spawner.damageEnemy(enemy,type.stats.maxHitpoints-1);
+assert.equal(children.length,0);
+spawner.damageEnemy(enemy,1);
+assert.equal(children.length,type.onDeath.count);
+assert(children.every(child=>child.id==='stationary'));
+for(const child of children)assert(Math.abs(Math.hypot(child.position.x+500,child.position.y-700)-type.onDeath.radiusPixels)<1e-9);
+spawner.finishDeath(enemy);assert.equal(children.length,type.onDeath.count);assert.equal(rewardCount,1);
+children=[];enemy=parent();spawner.enemies=[enemy];
+spawner.stunEnemy(enemy,500);spawner.damageEnemy(enemy,type.stats.maxHitpoints);
+assert.equal(children.length,0);
+spawner.updateStatuses(499);assert.equal(children.length,0);
+spawner.updateStatuses(1);assert.equal(children.length,type.onDeath.count);assert.equal(rewardCount,2);
+children=[];spawner.reset();assert.equal(children.length,0);
+console.log('Passed: configured HP and nearby Chaser count, signed world positions, exactly-once split, deferred stun death, and reset safety.');

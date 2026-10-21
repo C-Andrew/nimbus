@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10151c">
+  <meta name="description" content="Nimbus — a browser-based bullet heaven, currently in development.">
+  <title>Nimbus — In development</title>
+  <link rel="stylesheet" href="/src/ui/styles.css">
+  <script type="module" src="/src/main.js"></script>
+</head>
+<body>
+  <header><a class="brand" href="/">N<span>✦</span>MBUS</a></header>
+  <button class="info-button" type="button" popovertarget="game-info" aria-label="Game information" aria-controls="game-info" aria-expanded="false">i</button>
+  <button id="pause-game" class="pause-button" type="button" hidden>Ⅱ Pause</button>
+  <aside id="game-info" class="info-panel" popover aria-labelledby="info-title">
+    <div class="info-heading"><span class="eyebrow" id="info-title">ABOUT NIMBUS</span><button class="info-close" type="button" popovertarget="game-info" popovertargetaction="hide" aria-label="Close information">×</button></div>
+    <section class="intro">
+      <p class="eyebrow">BULLET HEAVEN · POWER FANTASY</p>
+      <h1>A storm<br>in the making.</h1>
+      <p class="description">The foundation is ready. The world, combat, and progression are still taking shape.</p>
+      <div class="status"><span></span> Site scaffold running</div>
+    </section>
+
+    <section class="details" aria-label="Project foundations">
+      <article><span>01</span><h2>Play anywhere</h2><p>A responsive foundation for mobile and desktop browsers.</p></article>
+      <article><span>02</span><h2>Run locally</h2><p>Gameplay will run on your device, inside your browser.</p></article>
+      <article><span>03</span><h2>Keep your progress</h2><p>Progress is saved in this browser. Export a backup to keep a separate copy.</p></article>
+    </section>
+    <section class="save-controls" aria-label="Local saves">
+      <h2>Player stats</h2><p id="lifetime-stats">Loading saves…</p>
+      <button id="export-save" type="button">Export backup</button>
+      <button id="import-save" type="button">Import backup</button>
+      <input id="save-file" type="file" accept="application/json,.json" hidden>
+      <button id="persist-save" type="button">Keep saves on this device</button>
+      <p id="storage-detail">Backups replace this browser’s saved progress when imported.</p>
+    </section>
+    <p class="info-build">LOCAL DEVELOPMENT · Design first. Then the storm.</p>
+  </aside>
+  <section id="prototype" hidden aria-label="Game prototype">
+    <div id="game-canvas" tabindex="-1" aria-label="Prototype arena. Move with WASD, arrow keys, or touch."></div>
+  </section>
+  <div id="pause-actions" hidden><button id="end-run" type="button">End Run</button></div>
+  <section id="restart-screen" hidden aria-labelledby="restart-title">
+    <div class="restart-card"><p class="eyebrow">RUN COMPLETE</p><h1 id="restart-title">Until next time.</h1>
+      <p class="run-caption">Time in-game</p><p id="run-duration">00:00.0</p><p id="run-kills"></p><button id="retry-save" type="button" hidden>Retry saving run</button>
+      <button id="play-again" type="button">Play Again</button>
+    </div>
+  </section>
+  <dialog id="level-up-modal" aria-labelledby="level-up-title">
+    <p class="eyebrow">CHOOSE YOUR UPGRADE</p><h2 id="level-up-title">Level Up</h2>
+    <p id="upgrade-weapon-name"></p><div id="upgrade-choices"></div>
+    <p class="upgrade-note">Choose one upgrade to continue.</p>
+  </dialog>
+  <p id="save-status" role="status"></p>
+  <p id="game-state" class="game-state" role="status">Ready</p>
+  <main>
+    <div class="home-art" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="core">✦</div></div>
+    <section class="play-entry" aria-label="Play Nimbus">
+      <button class="play-button" id="play-game" type="button"><span aria-hidden="true">▶</span> Play Game <span aria-hidden="true">↗</span></button>
+      <p id="play-status" role="status"></p>
+    </section>
+  </main>
+
+</body>
+</html>

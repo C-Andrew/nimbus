@@ -1,0 +1,97 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { emptyUpgradeTiers, effectiveWeapon, canUpgrade, validateUpgradeDefinition } from '../../../src/game/weapons/weapon-upgrades.js';
+import { validateCheckpoint } from '../../../src/storage/save-schema.js';
+const catalog=JSON.parse(await readFile(new URL('../../../src/data/weapons.json',import.meta.url),'utf8'));
+const definition=catalog.weapons[0];
+validateUpgradeDefinition(definition);
+const zero=emptyUpgradeTiers();
+const size=effectiveWeapon(definition,{...zero,size:2});
+assert(Math.abs(size.projectile.widthPixels-definition.projectile.widthPixels*1.15**2)<1e-9);
+assert(Math.abs(size.projectile.collisionRadiusPixels-definition.projectile.collisionRadiusPixels*1.15**2)<1e-9);
+assert.equal(effectiveWeapon(definition,{...zero,'fire-rate':1}).stats.intervalMs,150);
+assert.equal(effectiveWeapon(definition,{...zero,'fire-rate':2}).stats.intervalMs,50);
+assert(!canUpgrade(definition,{...zero,'fire-rate':2},'fire-rate'));
+assert.equal(effectiveWeapon(definition,{...zero,effect:1}).stats.damage,definition.stats.damage);
+assert.deepEqual(effectiveWeapon(definition,zero).projectileAnglesDegrees,[0]);
+assert.deepEqual(effectiveWeapon(definition,{...zero,effect:1}).projectileAnglesDegrees,[-7.5,7.5]);
+assert(canUpgrade(definition,{...zero,effect:1},'effect'));
+assert(!canUpgrade(definition,{...zero,effect:5},'effect'));
+assert.deepEqual(effectiveWeapon(definition,{...zero,effect:5}).projectileAnglesDegrees,[-37.5,-22.5,-7.5,7.5,22.5,37.5]);
+assert.throws(()=>effectiveWeapon(definition,{...zero,effect:6}));
+assert.equal(definition.stats.damage,1,'base catalog is not mutated');
+assert.throws(()=>effectiveWeapon(definition,{size:-1,'fire-rate':0,effect:0}));
+const originalFetch=globalThis.fetch;
+globalThis.fetch=async url=>({ok:true,json:async()=>JSON.parse(await readFile(url,'utf8'))});
+const {WeaponSystem}=await import('../../../src/game/weapons/weapon-system.js');
+const {loadWeaponCatalog}=await import('../../../src/game/weapons/weapon-catalog.js');
+const weaponCatalog=await loadWeaponCatalog();
+globalThis.fetch=originalFetch;
+const system=new WeaponSystem({},{},weaponCatalog);
+system.weapons = [];
+assert(system.equip(definition.id));
+system.weapons[0].elapsedMs=125;
+assert(system.applyUpgrade(definition.id,'fire-rate'));
+assert.equal(system.weapons[0].elapsedMs,75,'preserve halfway cooldown');
+assert(system.applyUpgrade(definition.id,'fire-rate'));
+assert(!system.applyUpgrade(definition.id,'fire-rate'),'capped selection rejected');
+assert(system.applyUpgrade(definition.id,'effect'));
+for (let i=1;i<5;i++) assert(system.applyUpgrade(definition.id,'effect'));
+assert(!system.applyUpgrade(definition.id,'effect'),'effect capped at five');
+system.reset();
+assert.deepEqual(system.weapons.map(w=>w.definition.id),['chain-lightning']);
+assert.deepEqual(system.weapons[0].tiers,zero);
+assert(!system.equip('missing'));
+const checkpoint={id:'upgrade-test',durationMs:1,kills:0,scene:{player:{x:0,y:0},facing:{x:0,y:-1},weapons:[{id:definition.id,elapsedMs:0,upgrades:zero}],enemies:[],spawnElapsedMs:0,progression:{level:2,totalXp:200,currentXp:0,xpPerLevel:100},pendingLevelUps:2,upgradeWeaponId:definition.id}};
+validateCheckpoint(checkpoint);
+assert.throws(()=>validateCheckpoint({...checkpoint,scene:{...checkpoint.scene,upgradeWeaponId:'not-owned'}}));
+console.log('Passed: compounded size, rate floor, effect cap, cooldown preservation, reset, and pending-choice checkpoint validation.');
+
+const shots=[];
+const firing = new WeaponSystem({},{},weaponCatalog);
+firing.weapons = [];
+assert(firing.equip(definition.id));
+firing.projectileBehavior.fireProjectile=(definition,facing)=>shots.push({definition,facing});
+firing.projectileBehavior.fire(firing.weapons[0].effective,{x:0,y:-1});
+assert.equal(shots.length,1,'base laser has one projectile');
+shots.length=0;
+firing.applyUpgrade(definition.id,'effect');
+firing.projectileBehavior.fire(firing.weapons[0].effective,{x:0,y:-1});
+assert.equal(shots.length,2,'effect adds exactly one projectile');
+assert(Math.abs(shots[0].facing.x+Math.sin(Math.PI/24))<1e-12);
+assert(Math.abs(shots[0].facing.y+Math.cos(Math.PI/24))<1e-12);
+assert(Math.abs(shots[1].facing.x-Math.sin(Math.PI/24))<1e-12);
+assert(Math.abs(shots[1].facing.y+Math.cos(Math.PI/24))<1e-12);
+assert.equal(shots[1].definition.stats.damage,definition.stats.damage);
+console.log('Passed: single base shot, extra 15-degree shot, and unchanged per-projectile damage.');
+
+for(let tier=2;tier<=5;tier++) {
+  assert(firing.applyUpgrade(definition.id,'effect'));
+  shots.length=0;
+  firing.projectileBehavior.fire(firing.weapons[0].effective,{x:1,y:0});
+  assert.equal(shots.length,tier+1);
+  shots.forEach((shot,index)=>assert(Math.abs(Math.atan2(shot.facing.y,shot.facing.x)*180/Math.PI-(index-tier/2)*15)<1e-10));
+}
+assert(!firing.applyUpgrade(definition.id,'effect'));
+console.log('Passed: cumulative projectile count and 15-degree spacing at every effect tier through five.');
+
+for(let tier=0;tier<=5;tier++) {
+  const angles=effectiveWeapon(definition,{...zero,effect:tier}).projectileAnglesDegrees;
+  assert.equal(angles.reduce((sum,a)=>sum+a,0),0,'cone centered at every tier');
+  angles.forEach((a,i)=>assert.equal(a,-angles[angles.length-1-i] || 0));
+}
+console.log('Passed: symmetric cone at every tier, including even projectile counts.');
+
+const cappedSize = new WeaponSystem({},{},weaponCatalog);
+cappedSize.weapons = [];
+assert(cappedSize.equip(definition.id));
+for(let i=0;i<10;i++)assert(cappedSize.applyUpgrade(definition.id,'size'));
+assert.equal(cappedSize.weapons[0].tiers.size,10);
+assert(!cappedSize.applyUpgrade(definition.id,'size'));
+assert(!canUpgrade(definition,{...zero,size:10},'size'));
+assert.throws(()=>effectiveWeapon(definition,{...zero,size:11}));
+assert(Math.abs(cappedSize.weapons[0].effective.projectile.widthPixels-definition.projectile.widthPixels*1.15**10)<1e-9);
+cappedSize.weapons=[];
+assert.equal(cappedSize.equip(definition.id,{...zero,size:11}),false,'over-cap save rejected');
+assert(cappedSize.equip(definition.id,{...zero,size:10}),'max-tier save accepted');
+console.log('Passed: ten size upgrades, eleventh rejected, compounded size, and loadout tier validation.');

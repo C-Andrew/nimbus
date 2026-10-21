@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import { enemyTouchesCircle, projectileContactTime } from '../../src/game/enemies/enemy-collisions.js';
+const block={sprite:{x:-100,y:200},type:{appearance:{shape:'rectangle',widthPixels:160,heightPixels:100}}};
+assert(enemyTouchesCircle(block,{x:-10,y:200},13));
+assert(!enemyTouchesCircle(block,{x:0,y:200},13));
+assert(!enemyTouchesCircle(block,{x:-10,y:260},13),'no corner false contact');
+assert(enemyTouchesCircle(block,{x:-100,y:200},13));
+assert.equal(projectileContactTime(block,-300,200,100,200,0),0.3);
+assert.equal(projectileContactTime(block,-100,0,-100,400,0),0.375);
+assert.equal(projectileContactTime(block,-300,300,100,300,0),null);
+assert.equal(projectileContactTime(block,-100,200,-100,200,0),0);
+const circle={sprite:{x:0,y:0},type:{appearance:{shape:'circle',radiusPixels:16}}};
+assert.equal(projectileContactTime(circle,-100,0,100,0,4),0.4);
+assert.equal(projectileContactTime(circle,-100,50,100,50,4),null);
+console.log('Passed: rectangular contact, corners, swept shots, negative coordinates, and circle regression.');
+
+const triangle={sprite:{x:0,y:0},type:{appearance:{shape:'triangle',widthPixels:44,heightPixels:44}}};
+assert(enemyTouchesCircle(triangle,{x:0,y:0},1));
+assert(!enemyTouchesCircle(triangle,{x:20,y:-20},1),'empty triangle corner is not solid');
+assert(enemyTouchesCircle(triangle,{x:0,y:-23},2));
+assert.equal(projectileContactTime(triangle,0,-100,0,100,0),0.39);
+assert.equal(projectileContactTime(triangle,20,-30,20,-10,0),null);
+assert.equal(projectileContactTime(triangle,0,0,0,0,0),0);
+console.log('Passed: triangle body, tip, empty corners, and swept projectile collision.');

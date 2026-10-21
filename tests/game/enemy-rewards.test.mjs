@@ -1,0 +1,37 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { rollXpReward, validateXpReward } from '../../src/game/enemies/enemy-rewards.js';
+const range = {min:1,max:5};
+validateXpReward(range);
+assert.equal(rollXpReward(range,()=>0),1);
+assert.equal(rollXpReward(range,()=>0.999999),5);
+for(let i=0;i<5;i++) assert.equal(rollXpReward(range,()=>(i+0.5)/5),i+1);
+assert.throws(()=>validateXpReward({min:5,max:1}));
+assert.throws(()=>validateXpReward({min:-1,max:5}));
+assert.throws(()=>validateXpReward({min:1,max:2.5}));
+// Load the actual catalog and spawner without requiring a browser or Phaser.
+const originalFetch=globalThis.fetch;
+globalThis.fetch=async url=>({ok:true,json:async()=>JSON.parse(await readFile(url,'utf8'))});
+const {EnemySpawner}=await import('../../src/game/enemies/enemy-spawner.js');
+const {loadEnemyCatalog}=await import('../../src/game/enemies/enemy-catalog.js');
+const enemyCatalog=await loadEnemyCatalog();
+globalThis.fetch=originalFetch;
+const type=enemyCatalog.enemies[0];
+assert.deepEqual(type.rewards.xp,range);
+let rewards=0,total=0;
+const spawner=new EnemySpawner({}, {},enemyCatalog, xp=>{rewards++;total+=xp;});
+const sprite={x:0,y:0,active:true,setActive(value){this.active=value;return this;},setVisible(){return this;}};
+const label={setText(){return this;},setVisible(){return this;}};
+spawner.enemies=[{sprite,label,type,hp:2,collisionOrder:0}];
+// This fixture bypasses spawn(), so register its collider explicitly.
+spawner.spatialIndex.update(spawner.enemies[0]);
+assert(spawner.hitTest(-30,0,30,0,1,1));
+assert.equal(rewards,0,'nonlethal hit grants nothing');
+assert(spawner.hitTest(-30,0,30,0,1,1));
+assert.equal(rewards,1);
+assert(total>=1&&total<=5);
+assert.equal(spawner.hitTest(-30,0,30,0,1,1),false);
+assert.equal(rewards,1,'dead enemy cannot grant XP twice');
+spawner.reset();
+assert.equal(rewards,1,'reset grants nothing');
+console.log('Passed: reward endpoints, range validation, actual kill integration, and exactly-once awards.');
