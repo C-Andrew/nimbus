@@ -27,6 +27,14 @@
       <article><span>02</span><h2>Run locally</h2><p>Gameplay will run on your device, inside your browser.</p></article>
       <article><span>03</span><h2>Keep your progress</h2><p>Progress is saved in this browser. Export a backup to keep a separate copy.</p></article>
     </section>
+    <section class="control-settings" aria-labelledby="control-settings-title">
+      <h2 id="control-settings-title">Controls</h2>
+      <label class="setting-toggle" for="force-virtual-joystick">
+        <span>Always show virtual joystick</span>
+        <input id="force-virtual-joystick" type="checkbox" role="switch" aria-describedby="joystick-setting-detail">
+      </label>
+      <p id="joystick-setting-detail">Show the joystick during gameplay on any device, including desktop. When off, it appears automatically on touch devices.</p>
+    </section>
     <section class="save-controls" aria-label="Local saves">
       <h2>Player stats</h2><p id="lifetime-stats">Loading saves…</p>
       <button id="export-save" type="button">Export backup</button>

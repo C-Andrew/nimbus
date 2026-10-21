@@ -14,7 +14,7 @@ const ui = Object.fromEntries([
   'lifetimeStats', 'playStatus', 'infoPanel', 'infoButton', 'pauseButton',
   'pauseActions', 'endRunButton', 'restartScreen', 'playAgainButton',
   'gameState', 'playEntry', 'runDuration', 'runKills', 'levelUpModal',
-  'exportSave', 'importSave', 'saveFile', 'persistSave',
+  'exportSave', 'importSave', 'saveFile', 'persistSave', 'forceJoystick',
 ].map(name => [name, element()]));
 const originalDocument = globalThis.document;
 const originalInterval = globalThis.setInterval;

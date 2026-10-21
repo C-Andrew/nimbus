@@ -18,6 +18,7 @@ export function getGameControls() {
   playEntry: '.play-entry', runDuration: '#run-duration', runKills: '#run-kills',
   exportSave: '#export-save', importSave: '#import-save', saveFile: '#save-file',
   persistSave: '#persist-save', storageDetail: '#storage-detail',
+  forceJoystick: '#force-virtual-joystick',
 }).map(([name, selector]) => [name, requireElement(selector)]));
 }
 

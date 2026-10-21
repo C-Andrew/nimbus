@@ -9,11 +9,13 @@ export function createSaveController(ui, getRun) {
   let checkpointRequested = false;
   let storageReady = false;
   let pendingCheckpoint = null;
+  let settings = {};
   const reportSaveError = error => { console.error(error); ui.saveStatus.textContent = 'Save failed. Progress may not be stored. Export a backup or retry.'; };
 
   async function refreshStats() {
     if (!storageReady) return;
     const p = await saveStore.profile();
+    settings = { ...p.settings };
     ui.lifetimeStats.textContent = `${p.stats.runsCompleted} runs · ${p.stats.totalKills} kills · ${(p.stats.totalPlayTimeMs/1000).toFixed(1)}s played · Best ${(p.stats.longestRunMs/1000).toFixed(1)}s`;
   }
   async function initSaves() {
@@ -72,5 +74,5 @@ export function createSaveController(ui, getRun) {
       ui.playAgainButton.disabled = false;
     } catch (error) { reportSaveError(error); ui.retrySaveButton.hidden = false; }
   }
-  return { initialized: savesInitialized, saveCheckpoint, finishRun, reportSaveError, get store() { return saveStore; }, get ready() { return storageReady; }, get pendingCheckpoint() { return pendingCheckpoint; } };
+  return { initialized: savesInitialized, saveCheckpoint, finishRun, reportSaveError, get store() { return saveStore; }, get ready() { return storageReady; }, get settings() { return settings; }, get pendingCheckpoint() { return pendingCheckpoint; } };
 }

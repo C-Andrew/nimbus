@@ -6,18 +6,22 @@ import { createSaveController } from './save-controller.js';
 import { renderGameState } from '../ui/game-controls.js';
 import { renderUpgradeChoices } from '../ui/upgrade-dialog.js';
 import { bindSaveControls } from '../ui/save-controls.js';
+import { bindJoystickSetting } from '../ui/joystick-setting.js';
 
 export function createRunController(ui, catalogs, createGame) {
   const runTimer = createRunTimer();
   let game;
   let runId = null;
   const saves = createSaveController(ui, () => ({ game, runId, runTimer }));
+  bindJoystickSetting(ui, saves, () => game?.scene.getScene('prototype').playerInput?.joystick);
   async function bootGame() {
     ui.playButton.disabled = true;
     try {
       await saves.initialized;
+      ui.forceJoystick.checked = saves.settings.forceVirtualJoystick === true;
       ui.prototype.hidden = false;
       game = createGame(ui.gameCanvas, catalogs, () => {
+        game.scene.getScene('prototype').playerInput?.joystick.setForced(ui.forceJoystick.checked);
         ui.playButton.disabled = false;
         if (saves.pendingCheckpoint) {
           const pendingCheckpoint = saves.pendingCheckpoint;
@@ -64,6 +68,7 @@ export function createRunController(ui, catalogs, createGame) {
     if (state === GameState.READY) runTimer.reset();
     if (state === GameState.IN_GAME) runTimer.start();
     game.registry.set('state', state);
+    game.scene.getScene('prototype').playerInput?.setState(state);
     game.scene.getScene('prototype').hud?.renderState(state, leavingReady, previous);
     renderGameState(ui, state, runTimer);
     if (state === GameState.PAUSED) animatePauseUi(ui,true);

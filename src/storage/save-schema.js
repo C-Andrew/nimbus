@@ -7,7 +7,7 @@ export const defaultProfile = () => ({
   schemaVersion: SAVE_VERSION,
   progression: { currency: 0, unlockedWeapons: ['basic-laser'], upgrades: {} },
   stats: { runsCompleted: 0, totalKills: 0, totalPlayTimeMs: 0, longestRunMs: 0 },
-  settings: { audioVolume: 1, graphicsQuality: 'auto' },
+  settings: { audioVolume: 1, graphicsQuality: 'auto', forceVirtualJoystick: false },
 });
 const nonnegative = n => Number.isFinite(n) && n >= 0 && n <= Number.MAX_SAFE_INTEGER;
 const coordinate = n => Number.isFinite(n) && Math.abs(n) <= Number.MAX_SAFE_INTEGER;
@@ -21,6 +21,7 @@ export function validateProfile(p) {
   for (const key of ['runsCompleted', 'totalKills']) if (!integer(p.stats[key])) fail();
   for (const key of ['totalPlayTimeMs', 'longestRunMs']) if (!nonnegative(p.stats[key])) fail();
   if (!nonnegative(p.settings.audioVolume) || p.settings.audioVolume > 1 || !['auto', 'low', 'high'].includes(p.settings.graphicsQuality)) fail();
+  if (p.settings.forceVirtualJoystick !== undefined && typeof p.settings.forceVirtualJoystick !== 'boolean') fail();
   return p;
 }
 export function validateRun(r) {
