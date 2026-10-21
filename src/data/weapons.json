@@ -45,7 +45,7 @@
           "maxTiers": 5
         }
       },
-      "icon": "/assets/icons/weapons/laser-gun.svg"
+      "icon": "./assets/icons/weapons/laser-gun.svg"
     },
     {
       "id": "chain-lightning",
@@ -89,7 +89,7 @@
           "maxTiers": 3
         }
       },
-      "icon": "/assets/icons/weapons/chain-lightning.svg"
+      "icon": "./assets/icons/weapons/chain-lightning.svg"
     }
   ]
 }

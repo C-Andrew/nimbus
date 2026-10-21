@@ -5,7 +5,8 @@
   "description": "Nimbus browser game scaffold",
   "scripts": {
     "dev": "python3 scripts/dev.py",
-    "test": "node --test tests/app/*.mjs tests/game/*.mjs tests/game/weapons/*.mjs tests/storage/*.mjs"
+    "test": "node --test tests/app/*.mjs tests/game/*.mjs tests/game/weapons/*.mjs tests/storage/*.mjs",
+    "build": "python3 scripts/build.py"
   },
   "dependencies": {
     "phaser": "4.2.1"

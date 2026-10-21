@@ -43,7 +43,7 @@ The planning outline is in `/Users/achin/Documents/Codex/2026-10-21/i/outputs/pl
 
 ## Architecture
 
-The website uses static HTML, CSS, and browser-native JavaScript modules. Phaser is the user-selected game engine, pinned to 4.2.1 in package.json and pnpm-lock.yaml. IndexedDB is the selected local save storage. Production hosting remains undecided.
+The website uses static HTML, CSS, and browser-native JavaScript modules. Phaser is the user-selected game engine, pinned to 4.2.1 in package.json and pnpm-lock.yaml. IndexedDB is the selected local save storage. GitHub Pages is the selected static hosting target; deployment preparation is described below.
 
 - `index.html`: responsive placeholder page.
 - `src/ui/styles.css`: responsive layout and presentation.
@@ -300,3 +300,12 @@ The current laser effect is capped at five upgrades, producing six lasers at -37
 - 2026-10-21: Added `src/game/enemies/enemy-spatial-index.js`, a sparse 128 px world-space grid, to replace full enemy-pool scans in laser swept-hit and player-contact queries. Each enemy center occupies one cell; queries expand by catalog body extents, projectile radius, and the triangle sweep’s mitered-corner padding. Existing exact collision functions still decide hits, nearest swept-hit selection retains pool-order ties, and contact damage remains the strongest overlapping enemy damage.
 - EnemySpawner synchronizes the index on spawn/reuse, movement across cells, death (including deferred stun deaths and Splitter children), distant despawn, reset, and checkpoint restore. Empty cells are deleted; query buffers are reused. Future position changes or removal paths must keep this index synchronized. The index is derived runtime state and is not saved.
 - Regression coverage in `tests/game/enemy-spatial-index.test.mjs` compares indexed queries with full scans for circles, rectangles, triangles, signed coordinates, swept paths, upgraded radii, boundary cases, and lifecycle changes. A deterministic 2,000-enemy spacing test reduces a local laser query to one candidate; this verifies candidate reduction, not actual device FPS. Movement/status loops, lightning targeting, HP text, and checkpoint costs remain separate performance work.
+
+## GitHub Pages hosting
+
+- 2026-10-21: User created the Git repository and uploaded it to `git@github.com:C-Andrew/nimbus.git` (`main` branch), and requested GitHub-based hosting. Prepared GitHub Pages deployment; preparation does not confirm a live deployment.
+- `.github/workflows/pages.yml` tests, builds, checks deployment paths, and deploys the `dist/` artifact on pushes to `main` or manual dispatch. Select Settings → Pages → Build and deployment → Source → GitHub Actions once in the repository. Expected default URL: `https://c-andrew.github.io/nimbus/` (subject to repository Pages configuration).
+- `npm run build` / `python3 scripts/build.py` recreates ignored `dist/` from an allowlist: index.html, src/ (excluding dev polling), assets/, and minified Phaser with its license under vendor/. Only the generated copies of Phaser imports are rewritten. No new runtime dependencies or bundler; pnpm lockfile remains authoritative for CI installation.
+- HTML and weapon icon paths are relative to the page, so both localhost root and the repository URL subpath work. Catalog URLs remain relative to their modules. `python3 scripts/check-build.py` checks deployed HTML/module/catalog/icon references for root and /nimbus/ hosting and ensures development polling is excluded.
+- Continue local development with `python3 scripts/dev.py` on port 5173. To preview production output, run `python3 -m http.server 5174 --directory dist`. Changes must be committed and pushed before the workflow can deploy them; do not commit dist/ or node_modules/.
+- IndexedDB saves stay local to each browser and origin. The GitHub Pages origin has separate saves from localhost; export/import a backup to transfer existing progress.
