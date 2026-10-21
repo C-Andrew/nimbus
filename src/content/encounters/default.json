@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "spawner": {
+    "enemyTypeId": "stationary",
+    "intervalMs": 3000,
+    "spawnImmediately": false,
+    "minimumDistanceScreenWidthRatio": 0.5,
+    "tables": [
+      {
+        "id": "chasers",
+        "enemyTypeId": "stationary",
+        "intervalMs": 3000,
+        "phases": [
+          {
+            "startMs": 0,
+            "minCount": 1,
+            "maxCount": 5
+          },
+          {
+            "startMs": 30000,
+            "minCount": 6,
+            "maxCount": 12
+          },
+          {
+            "startMs": 120000,
+            "minCount": 13,
+            "maxCount": 24
+          }
+        ]
+      },
+      {
+        "id": "splitters",
+        "enemyTypeId": "splitter",
+        "intervalMs": 3000,
+        "phases": [
+          {
+            "startMs": 0,
+            "minCount": 1,
+            "maxCount": 2
+          },
+          {
+            "startMs": 30000,
+            "minCount": 2,
+            "maxCount": 4
+          },
+          {
+            "startMs": 120000,
+            "minCount": 4,
+            "maxCount": 6
+          }
+        ]
+      }
+    ],
+    "offscreenMarginPixels": 32,
+    "maxActiveEnemies": 500
+  },
+  "readySpawn": {
+    "enemyTypeId": "block",
+    "positions": [
+      {
+        "offsetXPixels": 0,
+        "offsetYPixels": -180
+      },
+      {
+        "offsetXPixels": -180,
+        "offsetYPixels": -100
+      },
+      {
+        "offsetXPixels": 180,
+        "offsetYPixels": -100
+      }
+    ]
+  }
+}

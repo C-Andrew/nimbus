@@ -12,7 +12,7 @@ assert.throws(()=>validateXpReward({min:1,max:2.5}));
 // Load the actual catalog and spawner without requiring a browser or Phaser.
 const originalFetch=globalThis.fetch;
 globalThis.fetch=async url=>({ok:true,json:async()=>JSON.parse(await readFile(url,'utf8'))});
-const {EnemySpawner}=await import('../../src/game/enemies/enemy-spawner.js');
+const {EnemySystem: EnemySpawner}=await import('../../src/game/enemies/enemy-system.js');
 const {loadEnemyCatalog}=await import('../../src/game/enemies/enemy-catalog.js');
 const enemyCatalog=await loadEnemyCatalog();
 globalThis.fetch=originalFetch;

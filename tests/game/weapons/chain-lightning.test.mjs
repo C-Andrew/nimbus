@@ -1,3 +1,4 @@
+import { readWeaponContent } from '../../helpers/content.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { selectChainTargets, selectChainWave, lightningHopColor } from '../../../src/game/weapons/behaviors/lightning-targeting.js';
@@ -9,7 +10,7 @@ assert.deepEqual(selectChainTargets({x:0,y:0},[a,b,c],49,75,3),[]);
 assert.deepEqual(selectChainTargets({x:0,y:0},[a,b,c],100,59,3),[a]);
 assert.deepEqual(selectChainTargets({x:0,y:0},[a,b,c],100,75,2),[a,b]);
 assert.deepEqual(selectChainTargets({x:0,y:0},[a],100,1000,8),[a],'no target revisited');
-const config=JSON.parse(await readFile(new URL('../../../src/data/weapons.json',import.meta.url),'utf8'));
+const config=await readWeaponContent();
 const definition=config.weapons.find(w=>w.id==='chain-lightning');
 validateUpgradeDefinition(definition);
 const zero=emptyUpgradeTiers();

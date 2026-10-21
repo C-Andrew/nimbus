@@ -1,16 +1,12 @@
+import { loadManifest, readContent, definitionMap } from '../../content/content-loader.js';
+import { deathEffect } from './death-effects/registry.js';
 import { validateSpawnPhases } from './spawn-schedule.js';
 import { validateXpReward } from './enemy-rewards.js';
 import { ENEMY_BEHAVIORS } from './enemy-behaviors.js';
 
-export async function loadEnemyCatalog() {
-  const response = await fetch(new URL('../../data/enemies.json', import.meta.url));
-  if (!response.ok) throw new Error(`Enemy catalog failed to load: ${response.status}`);
-  const enemyCatalog = await response.json();
+export function validateEnemyCatalog(enemyCatalog) {
   if (enemyCatalog.schemaVersion !== 1 || !Array.isArray(enemyCatalog.enemies)) throw new Error('Invalid enemy catalog');
-  const definitions = new Map();
-  const colorValue = value => Number.parseInt(value.slice(1), 16);
-  for (const enemy of enemyCatalog.enemies) {
-    if (!enemy.id || !enemy.name || definitions.has(enemy.id)) throw new Error('Invalid or duplicate enemy ID');
+  const definitions = definitionMap(enemyCatalog.enemies, enemy => {
     validateXpReward(enemy.rewards?.xp);
     const a = enemy.appearance;
     if (!Object.hasOwn(ENEMY_BEHAVIORS, enemy.behavior?.type) || !['circle','rectangle','triangle'].includes(a?.shape)) throw new Error(`Unsupported enemy behavior: ${enemy.id}`);
@@ -24,19 +20,17 @@ export async function loadEnemyCatalog() {
     for (const key of ['color', 'strokeColor', 'hitpointTextColor']) {
       if (!/^#[0-9a-f]{6}$/i.test(a[key])) throw new Error(`Invalid ${key}: ${enemy.id}`);
     }
-    definitions.set(enemy.id, enemy);
-  }
+  });
   for (const enemy of definitions.values()) {
     const effect=enemy.onDeath;
-    if(effect && (effect.type!=='spawn-enemies' || !definitions.has(effect.enemyTypeId)
-      || effect.enemyTypeId===enemy.id || !Number.isSafeInteger(effect.count) || effect.count<1 || effect.count>32
-      || !Number.isFinite(effect.radiusPixels) || effect.radiusPixels<=0)) throw new Error(`Invalid death effect: ${enemy.id}`);
+    if (effect) deathEffect(effect).validate(effect, definitions, enemy.id);
   }
   const readySpawnConfig = enemyCatalog.readySpawn;
-  if (!definitions.has(readySpawnConfig?.enemyTypeId) || !Number.isFinite(readySpawnConfig.offsetXPixels) || !Number.isFinite(readySpawnConfig.offsetYPixels)) throw new Error('Invalid Ready spawn configuration');
+  if (!definitions.has(readySpawnConfig?.enemyTypeId) || !Array.isArray(readySpawnConfig.positions) || !readySpawnConfig.positions.length || !readySpawnConfig.positions.every(position => Number.isFinite(position?.offsetXPixels) && Number.isFinite(position?.offsetYPixels))) throw new Error('Invalid Ready spawn configuration');
   const spawnConfig = enemyCatalog.spawner;
   if (!definitions.has(spawnConfig?.enemyTypeId) || !Number.isFinite(spawnConfig.intervalMs) || spawnConfig.intervalMs <= 0 || typeof spawnConfig.spawnImmediately !== 'boolean' || !Number.isFinite(spawnConfig.minimumDistanceScreenWidthRatio) || spawnConfig.minimumDistanceScreenWidthRatio < 0) throw new Error('Invalid enemy spawner configuration');
 
+  if (!Number.isSafeInteger(spawnConfig.maxActiveEnemies) || spawnConfig.maxActiveEnemies < 1 || spawnConfig.maxActiveEnemies > 10000) throw new Error('Invalid active enemy limit');
   if (!Array.isArray(spawnConfig.tables) || !spawnConfig.tables.length) throw new Error('Missing enemy spawn tables');
   if (!Number.isFinite(spawnConfig.offscreenMarginPixels) || spawnConfig.offscreenMarginPixels <= 0) throw new Error('Invalid offscreen spawn margin');
   const tableIds=new Set();
@@ -46,4 +40,12 @@ export async function loadEnemyCatalog() {
     validateSpawnPhases(table.phases);
   }
   return { ...enemyCatalog, definitions };
+}
+
+export async function loadEnemyCatalog() {
+  const [{ entries }, encounter] = await Promise.all([
+    loadManifest(new URL('../../content/enemies/index.json', import.meta.url)),
+    readContent(new URL('../../content/encounters/default.json', import.meta.url)),
+  ]);
+  return validateEnemyCatalog({ ...encounter, enemies: entries });
 }

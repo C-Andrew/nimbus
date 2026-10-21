@@ -21,6 +21,13 @@ export function createRunController(ui, catalogs, createGame) {
       ui.forceJoystick.checked = saves.settings.forceVirtualJoystick === true;
       ui.prototype.hidden = false;
       game = createGame(ui.gameCanvas, catalogs, () => {
+        try { game.scene.getScene('prototype').restorePermanentEffects?.(saves.permanentEffects); }
+        catch (error) {
+          ui.playStatus.textContent = 'Saved power-ups are incompatible. Export a backup before changing content.';
+          ui.saveStatus.textContent = 'Existing saved progress has not been replaced.';
+          console.error(error);
+          return;
+        }
         game.scene.getScene('prototype').playerInput?.joystick.setForced(ui.forceJoystick.checked);
         ui.playButton.disabled = false;
         if (saves.pendingCheckpoint) {
@@ -41,6 +48,7 @@ export function createRunController(ui, catalogs, createGame) {
           }
         }
       });
+      game.events.on('permanent-effects-changed', saves.savePermanentEffects);
       game.events.on('level-up', enterLevelUp);
       game.events.on('player-defeated', () => {
         if (isState(GameState.IN_GAME)) endRun(true);

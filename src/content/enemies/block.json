@@ -1,0 +1,31 @@
+{
+  "id": "block",
+  "name": "Block",
+  "description": "A large, stationary grey rectangular enemy with 100,000 hitpoints.",
+  "behavior": {
+    "type": "stationary",
+    "description": "Remains at its spawn position."
+  },
+  "stats": {
+    "maxHitpoints": 100000,
+    "baseDamage": 0,
+    "movementSpeedPixelsPerSecond": 0
+  },
+  "appearance": {
+    "shape": "rectangle",
+    "widthPixels": 160,
+    "heightPixels": 100,
+    "color": "#80858f",
+    "strokeColor": "#b4bac4",
+    "strokeWidthPixels": 3,
+    "showHitpoints": true,
+    "hitpointTextColor": "#ffffff",
+    "hitpointFontSizePixels": 14
+  },
+  "rewards": {
+    "xp": {
+      "min": 0,
+      "max": 0
+    }
+  }
+}

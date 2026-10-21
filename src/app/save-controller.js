@@ -10,12 +10,14 @@ export function createSaveController(ui, getRun) {
   let storageReady = false;
   let pendingCheckpoint = null;
   let settings = {};
+  let permanentEffects = [];
   const reportSaveError = error => { console.error(error); ui.saveStatus.textContent = 'Save failed. Progress may not be stored. Export a backup or retry.'; };
 
   async function refreshStats() {
     if (!storageReady) return;
     const p = await saveStore.profile();
     settings = { ...p.settings };
+    permanentEffects = p.progression.effects ?? [];
     ui.lifetimeStats.textContent = `${p.stats.runsCompleted} runs · ${p.stats.totalKills} kills · ${(p.stats.totalPlayTimeMs/1000).toFixed(1)}s played · Best ${(p.stats.longestRunMs/1000).toFixed(1)}s`;
   }
   async function initSaves() {
@@ -56,6 +58,15 @@ export function createSaveController(ui, getRun) {
     })().catch(reportSaveError).finally(() => { checkpointTask = null; });
     return checkpointTask;
   }
+  async function savePermanentEffects() {
+    const scene = getRun().game?.scene.getScene('prototype');
+    if (!storageReady || !scene?.effects) return;
+    const effects = scene.effects.permanentSnapshot();
+    try {
+      await saveStore.updateProfile(profile => { profile.progression.effects = effects; });
+      permanentEffects = effects;
+    } catch (error) { reportSaveError(error); }
+  }
   async function finishRun() {
     const { game, runId, runTimer } = getRun();
     ui.playAgainButton.disabled = true;
@@ -74,5 +85,5 @@ export function createSaveController(ui, getRun) {
       ui.playAgainButton.disabled = false;
     } catch (error) { reportSaveError(error); ui.retrySaveButton.hidden = false; }
   }
-  return { initialized: savesInitialized, saveCheckpoint, finishRun, reportSaveError, get store() { return saveStore; }, get ready() { return storageReady; }, get settings() { return settings; }, get pendingCheckpoint() { return pendingCheckpoint; } };
+  return { initialized: savesInitialized, saveCheckpoint, savePermanentEffects, finishRun, reportSaveError, get store() { return saveStore; }, get ready() { return storageReady; }, get settings() { return settings; }, get permanentEffects() { return permanentEffects; }, get pendingCheckpoint() { return pendingCheckpoint; } };
 }

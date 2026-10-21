@@ -25,6 +25,8 @@ jobs:
           python-version: '3.12'
       - name: Install dependencies
         run: npx --yes pnpm@10.18.3 install --frozen-lockfile
+      - name: Validate content
+        run: npm run check:content
       - name: Test
         run: npm test
       - name: Build static site

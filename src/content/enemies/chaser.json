@@ -1,0 +1,30 @@
+{
+  "id": "stationary",
+  "name": "Chaser",
+  "description": "A basic enemy with three hitpoints that continuously pursues the player and deals contact damage.",
+  "behavior": {
+    "type": "chase-player",
+    "description": "Moves directly toward the player at a constant speed, updating direction as the player moves."
+  },
+  "stats": {
+    "maxHitpoints": 1,
+    "baseDamage": 1,
+    "movementSpeedPixelsPerSecond": 40
+  },
+  "appearance": {
+    "shape": "circle",
+    "radiusPixels": 16,
+    "color": "#f28d72",
+    "strokeColor": "#ffc5ae",
+    "strokeWidthPixels": 2,
+    "showHitpoints": true,
+    "hitpointTextColor": "#10151c",
+    "hitpointFontSizePixels": 12
+  },
+  "rewards": {
+    "xp": {
+      "min": 1,
+      "max": 5
+    }
+  }
+}

@@ -47,9 +47,15 @@ def check():
                 check_reference(module_url, reference, prefix)
             for reference in DATA_URL.findall(code):
                 check_reference(module_url, reference, prefix)
-        weapons = json.loads((DIST / 'src/data/weapons.json').read_text())
-        for weapon in weapons['weapons']:
-            check_reference(base, weapon['icon'], prefix)
+        # Follow every manifest entry and validate its page-relative icon.
+        for manifest_path in (DIST / 'src/content').glob('*/index.json'):
+            manifest = json.loads(manifest_path.read_text())
+            manifest_url = base + manifest_path.relative_to(DIST).as_posix()
+            for reference in manifest['files']:
+                check_reference(manifest_url, reference, prefix)
+                definition = json.loads((manifest_path.parent / reference).read_text())
+                if definition.get('icon'):
+                    check_reference(base, definition['icon'], prefix)
     assert not (DIST / 'src/dev').exists(), 'Development polling must not ship'
     assert 'startDevReload' not in (DIST / 'src/main.js').read_text()
     assert not (DIST / 'node_modules').exists(), 'Ship only the curated engine asset'

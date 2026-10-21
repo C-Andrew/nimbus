@@ -1,15 +1,17 @@
+import { StatBlock } from '../stats/stat-block.js';
+import { EffectSystem } from '../effects/effect-system.js';
 import { PlayerInput } from '../player/player-input.js';
 import { GameHud } from '../hud/game-hud.js';
 import Phaser from '/node_modules/phaser/dist/phaser.esm.js';
 import { GameState } from '../run/run-state.js';
 import { WeaponSystem } from '../weapons/weapon-system.js';
-import { EnemySpawner } from '../enemies/enemy-spawner.js';
+import { EnemySystem } from '../enemies/enemy-system.js';
 import { RunProgression } from '../run/run-progression.js';
 import { PlayerHealth } from '../player/player-health.js';
 
 const colorValue = hex => Number.parseInt(hex.slice(1), 16);
 
-export function createPlayScene({ playerConfig, weaponCatalog, enemyCatalog }, onReady) {
+export function createPlayScene({ playerConfig, weaponCatalog, enemyCatalog, statDefinitions, powerUpCatalog }, onReady) {
   const playerStats = playerConfig.stats;
   const playerAppearance = playerConfig.appearance;
   const readySpawnConfig = enemyCatalog.readySpawn;
@@ -34,39 +36,56 @@ export function createPlayScene({ playerConfig, weaponCatalog, enemyCatalog }, o
       this.player.setStrokeStyle(playerAppearance.strokeWidthPixels, colorValue(playerAppearance.strokeColor));
       this.pendingLevelUps = 0;
       this.upgradeWeaponId = null;
-      this.health = new PlayerHealth(playerStats);
+      this.stats = new StatBlock(playerStats, statDefinitions, values => {
+        this.health.setStats(values);
+        this.player.setRadius(values.collisionRadiusPixels);
+        if (this.hud) this.renderHealth();
+      });
+      this.health = new PlayerHealth(this.stats.values);
+      this.effects = new EffectSystem(this.stats, powerUpCatalog.definitions, () => this.game.events.emit('permanent-effects-changed'));
       this.facing = { ...playerConfig.initialFacing };
       this.facingMarker = this.add.triangle(0, 0, 0, 10, 16, 0, 16, 20, colorValue(playerAppearance.facingMarkerColor)).setDepth(2);
-      this.enemies = new EnemySpawner(this, this.player, enemyCatalog, xp => this.awardXp(xp));
+      this.enemies = new EnemySystem(this, this.player, enemyCatalog, xp => this.awardXp(xp));
       this.weapons = new WeaponSystem(this, this.player, weaponCatalog);
       this.playerInput = new PlayerInput(this, playerConfig);
       this.hud = new GameHud(this, playerConfig);
       this.progression = new RunProgression(playerConfig.progression.xpPerLevel, value => this.renderProgression(value));
       this.renderHealth();
       this.drawGrid();
-      this.spawnReadyTarget();
+      this.spawnReadyTargets();
       this.scale.on('resize', this.drawGrid, this);
       this.game.events.on('blur', this.clearInput, this);
       onReady?.();
       this.events.once('shutdown', () => {
+        this.weapons.destroy();
         this.game.events.off('blur', this.clearInput, this);
         this.scale.off('resize', this.drawGrid, this);
       });
     }
     snapshot({ packedEnemies = false } = {}) {
-      return { pendingLevelUps:this.pendingLevelUps, upgradeWeaponId:this.upgradeWeaponId, progression: this.progression.snapshot(), player: {x:this.player.x,y:this.player.y,health:this.health.snapshot()}, facing:{...this.facing},
+      return { effects: this.effects.snapshot(), pendingLevelUps:this.pendingLevelUps, upgradeWeaponId:this.upgradeWeaponId, progression: this.progression.snapshot(), player: {x:this.player.x,y:this.player.y,health:this.health.snapshot()}, facing:{...this.facing},
         weapons:this.weapons.weapons.map(w=>({id:w.definition.id,elapsedMs:w.elapsedMs,upgrades:{...w.tiers}})),
         enemies:packedEnemies ? this.enemies.packedSnapshot() : this.enemies.snapshot(),spawnElapsedMs:this.enemies.elapsedMs,spawnRunElapsedMs:this.enemies.runElapsedMs };
+    }
+    grantPowerUp(id) {
+      if (this.registry.get('state') !== GameState.IN_GAME) return false;
+      return this.effects.apply(id);
+    }
+    restorePermanentEffects(entries) {
+      this.effects.restore(entries, { permanentOnly: true });
+      this.health.reset();
+      this.renderHealth();
     }
     restoreRun(checkpoint) {
       this.resetRun();
       const s = checkpoint.scene;
       this.player.setPosition(s.player.x, s.player.y);
+      if (s.effects !== undefined) this.effects.restoreRun(s.effects);
       this.progression.restore(s.progression);
       this.health.restore(s.player.health);
       this.renderHealth();
       this.facing = {...s.facing};
-      this.weapons.weapons = [];
+      this.weapons.clearEquipment();
       for (const saved of s.weapons) {
         if(!this.weapons.equip(saved.id, saved.upgrades)) throw new Error(`Unknown saved weapon: ${saved.id}`);
         this.weapons.weapons.at(-1).elapsedMs = saved.elapsedMs;
@@ -82,6 +101,7 @@ export function createPlayScene({ playerConfig, weaponCatalog, enemyCatalog }, o
     }
     resetRun() {
       this.clearInput();
+      this.effects.clearRun();
       this.player.setPosition(playerConfig.initialPosition.x, playerConfig.initialPosition.y);
       this.hud.reset();
       this.facing = { ...playerConfig.initialFacing };
@@ -93,17 +113,20 @@ export function createPlayScene({ playerConfig, weaponCatalog, enemyCatalog }, o
       this.player.setAlpha(1);
       this.weapons.reset();
       this.enemies.reset();
-      this.spawnReadyTarget();
+      this.spawnReadyTargets();
       this.syncCamera();
     }
-    spawnReadyTarget() {
+    spawnReadyTargets() {
       this.enemies.reset();
-      this.enemies.spawn(readySpawnConfig.enemyTypeId, {
-        x: this.player.x + readySpawnConfig.offsetXPixels,
-        y: this.player.y + readySpawnConfig.offsetYPixels,
-      });
+      for (const position of readySpawnConfig.positions) {
+        this.enemies.spawn(readySpawnConfig.enemyTypeId, {
+          x: this.player.x + position.offsetXPixels,
+          y: this.player.y + position.offsetYPixels,
+        });
+      }
     }
     startProgression() {
+      this.effects.clearRun();
       this.enemies.reset();
       this.weapons.reset();
       this.pendingLevelUps = 0;
@@ -137,6 +160,7 @@ export function createPlayScene({ playerConfig, weaponCatalog, enemyCatalog }, o
       const state = this.registry.get('state');
       const inGame = state === GameState.IN_GAME;
       const controllable = inGame || state === GameState.READY;
+      if (inGame) this.effects.advance(Math.min(delta, 50));
       this.playerInput.update(delta, controllable);
       this.syncCamera();
       this.facingMarker.setPosition(this.player.x + this.facing.x * playerAppearance.facingMarkerOffsetPixels, this.player.y + this.facing.y * playerAppearance.facingMarkerOffsetPixels);

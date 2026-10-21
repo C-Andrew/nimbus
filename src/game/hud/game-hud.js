@@ -7,7 +7,6 @@ import { GameState } from '../run/run-state.js';
 export class GameHud {
   constructor(scene, config) {
     this.scene = scene;
-    this.stats = config.stats;
     this.appearance = config.appearance;
     this.weaponSignature = null;
     this.weaponSlots = Array.from({length:scene.weapons.catalog.maxEquippedWeapons}, (_, index) => ({
@@ -20,11 +19,19 @@ export class GameHud {
     this.healthBar = new StatBar(scene,0x83d96f);
     this.xpBar = new StatBar(scene,0x329dff);
     scene.progressionHud = createHudText(scene,18,scene.scale.height-143,'',{fontSize:'14px',color:'#d7e2e9'});
+    this.setRunStatsVisible(false);
+  }
+  setRunStatsVisible(visible) {
+    this.healthBar.setVisible(visible);
+    this.xpBar.setVisible(visible);
+    this.scene.progressionHud.setVisible(visible);
   }
   renderState(state, leavingReady = false, previous) {
     const scene = this.scene;
     this.cancelHudTransition?.();
+    this.setRunStatsVisible(state !== GameState.READY);
     const inGame = state === GameState.IN_GAME;
+    this.layoutRunStats(inGame);
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     scene.readout.setText(`${Math.round(scene.game.loop.actualFps)} FPS`);
     if (state===GameState.READY && previous===GameState.RESTART && !reducedMotion) {
@@ -96,16 +103,20 @@ export class GameHud {
   renderHealth() {
     const scene = this.scene;
     const color=scene.health.hp <= this.appearance.lowHealthThresholdHitpoints ? 0xf17b68 : 0x83d96f;
-    this.healthBar.setValue(scene.health.hp,this.stats.maxHitpoints,`HP ${scene.health.hp} / ${this.stats.maxHitpoints}`,color);
+    this.healthBar.setValue(scene.health.hp,scene.health.maxHp,`HP ${scene.health.hp} / ${scene.health.maxHp}`,color);
+  }
+  layoutRunStats(inGame) {
+    const { width, height } = this.scene.scale;
+    const barWidth = Math.max(1, Math.min(320, width - 36));
+    this.healthBar.resize(barWidth, inGame ? 58 : height - 78);
+    this.xpBar.resize(barWidth, inGame ? 90 : height - 110);
+    this.scene.progressionHud.setPosition(18, inGame ? 110 : height - 143);
+    this.scene.progressionHud.setWordWrapWidth(Math.max(100, width - 36));
   }
   resize() {
     const scene = this.scene;
     const { width } = scene.scale;
-    scene.progressionHud.setPosition(18, scene.scale.height - 143);
-    scene.progressionHud.setWordWrapWidth(Math.max(100, width - 36));
-    const barWidth=Math.max(1,Math.min(320,width-36));
-    this.healthBar.resize(barWidth,scene.scale.height-78);
-    this.xpBar.resize(barWidth,scene.scale.height-110);
+    this.layoutRunStats(scene.registry.get('state') === GameState.IN_GAME);
     const spacing = Math.min(44, (width-36)/this.weaponSlots.length);
     this.weaponSlots.forEach((slot,index)=>{
       slot.frame.setPosition(18+spacing/2+index*spacing,scene.scale.height-32);

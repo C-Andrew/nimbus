@@ -1,6 +1,7 @@
+import { validatePowerUpState } from '../game/effects/effect-system.js';
 import { validateBackup } from '../storage/save-schema.js';
 
-export function bindSaveControls(ui, saves, { weaponCatalog, enemyCatalog }) {
+export function bindSaveControls(ui, saves, { weaponCatalog, enemyCatalog, powerUpCatalog }) {
   ui.exportSave.addEventListener('click', async () => {
     try {
       if (!saves.ready) throw new Error('Storage unavailable');
@@ -23,6 +24,8 @@ export function bindSaveControls(ui, saves, { weaponCatalog, enemyCatalog }) {
       if (data.checkpoint) {
         if(data.checkpoint.scene.weapons.some(w=>!weaponCatalog.weapons.some(d=>d.id===w.id)) || data.checkpoint.scene.enemies.some(e=>!enemyCatalog.enemies.some(d=>d.id===e.id && e.hp<=d.stats.maxHitpoints))) throw new Error('Backup contains unsupported game content');
       }
+      validatePowerUpState(data.profile.progression.effects ?? [], powerUpCatalog.definitions, true);
+      if (data.checkpoint) validatePowerUpState(data.checkpoint.scene.effects ?? [], powerUpCatalog.definitions);
       if(!window.confirm('Replace this browser’s Nimbus progress with this backup? Export your current save first if you want to keep it.'))return;
       await saves.store.importBackup(data);
       location.reload();

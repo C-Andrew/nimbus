@@ -1,3 +1,4 @@
+import { isValidEffectState } from '../game/effects/effect-state.js';
 import { validUpgradeTiers } from '../game/weapons/weapon-upgrades.js';
 import { isValidRunProgression } from '../game/run/run-progression.js';
 import { isValidPlayerHealth } from '../game/player/player-health.js';
@@ -22,6 +23,7 @@ export function validateProfile(p) {
   for (const key of ['totalPlayTimeMs', 'longestRunMs']) if (!nonnegative(p.stats[key])) fail();
   if (!nonnegative(p.settings.audioVolume) || p.settings.audioVolume > 1 || !['auto', 'low', 'high'].includes(p.settings.graphicsQuality)) fail();
   if (p.settings.forceVirtualJoystick !== undefined && typeof p.settings.forceVirtualJoystick !== 'boolean') fail();
+  if (p.progression.effects !== undefined && !isValidEffectState(p.progression.effects)) fail();
   return p;
 }
 export function validateRun(r) {
@@ -34,6 +36,7 @@ export function validateCheckpoint(c) {
   validateRun(c);
   const s = c.scene;
   if (!s || !coordinate(s.player?.x) || !coordinate(s.player?.y) || !Number.isFinite(s.facing?.x) || !Number.isFinite(s.facing?.y) || Math.abs(Math.hypot(s.facing.x,s.facing.y)-1) > 0.001) fail();
+  if (s.effects !== undefined && !isValidEffectState(s.effects)) fail();
   if (s.progression !== undefined && !isValidRunProgression(s.progression)) fail();
   if (s.player.health !== undefined && !isValidPlayerHealth(s.player.health)) fail();
   if (!Array.isArray(s.weapons) || s.weapons.length > 6 || new Set(s.weapons.map(w=>w.id)).size !== s.weapons.length || !s.weapons.every(w=>id(w.id)&&nonnegative(w.elapsedMs)&&(w.upgrades===undefined||validUpgradeTiers(w.upgrades)))) fail();

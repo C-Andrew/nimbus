@@ -11,6 +11,13 @@ export class PlayerHealth {
     this.invulnerabilityMs = 0;
   }
 
+  setStats(stats) {
+    this.maxHp = stats.maxHitpoints;
+    this.contactInvulnerabilityMs = stats.contactInvulnerabilityMs;
+    this.hp = Math.min(this.hp, this.maxHp);
+    this.invulnerabilityMs = Math.min(this.invulnerabilityMs, this.contactInvulnerabilityMs);
+  }
+
   advance(deltaMs) {
     this.invulnerabilityMs = Math.max(0, this.invulnerabilityMs - deltaMs);
   }

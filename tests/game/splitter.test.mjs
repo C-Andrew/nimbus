@@ -1,7 +1,8 @@
+import { readEnemyContent } from '../helpers/content.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { EnemySpawner } from '../../src/game/enemies/enemy-spawner.js';
-const data=JSON.parse(await readFile(new URL('../../src/data/enemies.json',import.meta.url),'utf8'));
+import { EnemySystem as EnemySpawner } from '../../src/game/enemies/enemy-system.js';
+const data=await readEnemyContent();
 const definitions=new Map(data.enemies.map(enemy=>[enemy.id,enemy]));
 const type=definitions.get('splitter');
 assert(type.stats.maxHitpoints>0);

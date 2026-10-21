@@ -13,7 +13,7 @@ export class PlayerInput {
   update(delta, controllable) {
     const { player, facing, input, scale } = this.scene;
     const playerConfig = this.config;
-    const playerStats = playerConfig.stats;
+    const playerStats = this.scene.stats.values;
     const k = this.keys;
     let x = Number(k.D.isDown || k.RIGHT.isDown) - Number(k.A.isDown || k.LEFT.isDown);
     let y = Number(k.S.isDown || k.DOWN.isDown) - Number(k.W.isDown || k.UP.isDown);

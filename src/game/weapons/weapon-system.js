@@ -1,5 +1,4 @@
-import { ChainLightning } from './behaviors/chain-lightning.js';
-import { StraightProjectile } from './behaviors/straight-projectile.js';
+import { weaponBehavior } from './weapon-behaviors.js';
 import { GameState } from '../run/run-state.js';
 import { emptyUpgradeTiers, validUpgradeTiers, normalizeUpgradeTiers, effectiveWeapon, canUpgrade } from './weapon-upgrades.js';
 // Unique weapon slots and a reusable projectile pool; no physics dependency.
@@ -10,8 +9,8 @@ export class WeaponSystem {
     this.definitions = catalog.definitions;
     this.scene = scene;
     this.player = player;
-    this.projectileBehavior = new StraightProjectile(scene, player);
-    this.lightningBehavior = new ChainLightning(scene, player);
+    this.runtimes = new Map();
+    this.weapons = [];
     this.reset();
   }
   equip(id, tiers = emptyUpgradeTiers()) {
@@ -19,13 +18,16 @@ export class WeaponSystem {
     if (!definition) return false;
     if (this.weapons.length >= this.catalog.maxEquippedWeapons || this.weapons.some(w => w.definition.id === definition.id)) return false;
     if (!validUpgradeTiers(tiers)) return false;
-    tiers = normalizeUpgradeTiers(definition,tiers);
     let effective;
-    try { effective = effectiveWeapon(definition, tiers); } catch { return false; }
-    const maxFireTier = Math.ceil((definition.stats.intervalMs - definition.upgrades['fire-rate'].minimumIntervalMs) / definition.upgrades['fire-rate'].intervalReductionMs);
-    if (tiers['fire-rate'] > maxFireTier) return false;
+    try { tiers = normalizeUpgradeTiers(definition, tiers); effective = effectiveWeapon(definition, tiers); }
+    catch { return false; }
     this.loadoutVersion++;
-    this.weapons.push({ definition, tiers: {...tiers}, effective, elapsedMs: 0 });
+    let runtime = this.runtimes.get(id);
+    if (!runtime) {
+      runtime = weaponBehavior(definition).createRuntime(this.scene, this.player);
+      this.runtimes.set(id, runtime);
+    }
+    this.weapons.push({ definition, tiers: {...tiers}, effective, runtime, elapsedMs: 0 });
     return true;
   }
   applyUpgrade(id, category) {
@@ -38,25 +40,31 @@ export class WeaponSystem {
     weapon.effective = effective;
     return true;
   }
-  reset() {
-    this.lightningBehavior.reset();
-    this.projectileBehavior.reset();
+  clearEquipment() {
+    for (const runtime of this.runtimes.values()) runtime.reset();
     this.weapons = [];
     this.loadoutVersion++;
+  }
+  destroy() {
+    for (const runtime of this.runtimes.values()) runtime.destroy();
+    this.runtimes.clear();
+    this.weapons = [];
+  }
+  reset() {
+    this.clearEquipment();
     for (const id of this.catalog.startingWeapons) this.equip(id);
   }
   update(delta, facing, enemies) {
-    this.lightningBehavior.updateChain(delta,enemies);
-    this.projectileBehavior.update(delta, enemies);
+    for (const weapon of this.weapons) {
+      weapon.runtime.update(delta, enemies);
+      if (![GameState.IN_GAME, GameState.READY].includes(this.scene.registry.get('state'))) return;
+    }
     if (![GameState.IN_GAME, GameState.READY].includes(this.scene.registry.get('state'))) return;
     for (const weapon of this.weapons) {
       weapon.elapsedMs += delta;
       if (weapon.elapsedMs >= weapon.effective.stats.intervalMs) {
         weapon.elapsedMs %= weapon.effective.stats.intervalMs;
-        if (weapon.definition.behavior.type === 'chain-lightning') {
-          if (enemies) this.lightningBehavior.fireChainLightning(weapon.effective, enemies);
-        }
-        else this.projectileBehavior.fire(weapon.effective, facing);
+        weapon.runtime.fire(weapon.effective, facing, enemies);
         if (![GameState.IN_GAME, GameState.READY].includes(this.scene.registry.get('state'))) return;
       }
     }

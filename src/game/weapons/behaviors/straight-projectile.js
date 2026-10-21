@@ -48,6 +48,10 @@ export class StraightProjectile {
       }
     }
   }
+  destroy() {
+    for (const shot of this.projectiles) shot.sprite.destroy();
+    this.projectiles.length = 0;
+  }
   reset() {
     for (const shot of this.projectiles) shot.sprite.setActive(false).setVisible(false);
   }

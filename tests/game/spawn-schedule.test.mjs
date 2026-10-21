@@ -1,8 +1,9 @@
+import { readEnemyContent } from '../helpers/content.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { validateSpawnPhases, spawnWaveSize } from '../../src/game/enemies/spawn-schedule.js';
-import { EnemySpawner } from '../../src/game/enemies/enemy-spawner.js';
-const catalog=JSON.parse(await readFile(new URL('../../src/data/enemies.json',import.meta.url),'utf8'));
+import { EnemySystem as EnemySpawner } from '../../src/game/enemies/enemy-system.js';
+const catalog=await readEnemyContent();
 const phases=catalog.spawner.tables.find(table=>table.id==='chasers').phases;
 validateSpawnPhases(phases);
 for(const [time,min,max] of [[0,1,5],[29999,1,5],[30000,6,12],[119999,6,12],[120000,13,24],[239999,13,24],[240000,13,24]]) {

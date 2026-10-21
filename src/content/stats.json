@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "stats": {
+    "maxHitpoints": { "minimum": 1, "maximum": 1000000, "integer": true },
+    "movementSpeedPixelsPerSecond": { "minimum": 0.001, "maximum": 10000 },
+    "contactInvulnerabilityMs": { "minimum": 0, "maximum": 3600000 },
+    "collisionRadiusPixels": { "minimum": 1, "maximum": 1000 }
+  }
+}

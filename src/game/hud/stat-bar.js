@@ -4,12 +4,20 @@ import { createHudText } from './hud-text.js';
 export class StatBar {
   constructor(scene, color) {
     this.ratio = 0;
+    this.visible = true;
     this.width = 260;
     this.track = scene.add.rectangle(18,0,this.width,22,0x101820,0.95)
       .setOrigin(0,0.5).setStrokeStyle(1,0x53636c).setScrollFactor(0).setDepth(3);
     this.fill = scene.add.rectangle(20,0,1,18,color,0.85)
       .setOrigin(0,0.5).setScrollFactor(0).setDepth(4).setVisible(false);
     this.label = createHudText(scene,28,0,'',{fontSize:'14px',color:'#ffffff'}).setOrigin(0,0.5);
+  }
+  setVisible(visible) {
+    this.visible = visible;
+    this.track.setVisible(visible);
+    this.label.setVisible(visible);
+    this.layoutFill();
+    return this;
   }
   setValue(value, maximum, text, color) {
     this.ratio = maximum > 0 ? Math.max(0,Math.min(1,value/maximum)) : 0;
@@ -25,7 +33,7 @@ export class StatBar {
     this.layoutFill();
   }
   layoutFill() {
-    this.fill.setVisible(this.ratio>0);
+    this.fill.setVisible(this.visible && this.ratio>0);
     this.fill.setSize(Math.max(0.001,(this.width-4)*this.ratio),18);
   }
 }

@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "files": [
+    "./chaser.json",
+    "./block.json",
+    "./splitter.json"
+  ]
+}

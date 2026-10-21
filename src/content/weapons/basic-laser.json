@@ -1,0 +1,42 @@
+{
+  "id": "basic-laser",
+  "name": "Laser",
+  "description": "A basic laser gun that automatically fires a small cyan laser in the player's facing direction every half second.",
+  "behavior": {
+    "type": "straight-projectile",
+    "trigger": "automatic",
+    "aim": "player-facing",
+    "onHit": "consume-projectile",
+    "description": "Travel straight along the facing direction at firing time. Deal damage to the first enemy hit, then disappear."
+  },
+  "stats": {
+    "intervalMs": 250,
+    "damage": 1,
+    "speedPixelsPerSecond": 200,
+    "lifetimeMs": 5000,
+    "muzzleOffsetPixels": 24
+  },
+  "projectile": {
+    "shape": "rectangle",
+    "widthPixels": 16,
+    "heightPixels": 4,
+    "collisionRadiusPixels": 8,
+    "color": "#83f5ff"
+  },
+  "upgrades": {
+    "size": {
+      "multiplierPerTier": 1.15,
+      "maxTiers": 10
+    },
+    "fire-rate": {
+      "intervalReductionMs": 100,
+      "minimumIntervalMs": 50
+    },
+    "effect": {
+      "type": "additional-projectile",
+      "angleOffsetDegrees": 15,
+      "maxTiers": 5
+    }
+  },
+  "icon": "./assets/icons/weapons/laser-gun.svg"
+}

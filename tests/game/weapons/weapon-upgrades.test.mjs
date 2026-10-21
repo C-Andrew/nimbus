@@ -1,8 +1,9 @@
+import { readWeaponContent } from '../../helpers/content.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { emptyUpgradeTiers, effectiveWeapon, canUpgrade, validateUpgradeDefinition } from '../../../src/game/weapons/weapon-upgrades.js';
 import { validateCheckpoint } from '../../../src/storage/save-schema.js';
-const catalog=JSON.parse(await readFile(new URL('../../../src/data/weapons.json',import.meta.url),'utf8'));
+const catalog=await readWeaponContent();
 const definition=catalog.weapons[0];
 validateUpgradeDefinition(definition);
 const zero=emptyUpgradeTiers();
@@ -51,12 +52,12 @@ const shots=[];
 const firing = new WeaponSystem({},{},weaponCatalog);
 firing.weapons = [];
 assert(firing.equip(definition.id));
-firing.projectileBehavior.fireProjectile=(definition,facing)=>shots.push({definition,facing});
-firing.projectileBehavior.fire(firing.weapons[0].effective,{x:0,y:-1});
+firing.weapons[0].runtime.fireProjectile=(definition,facing)=>shots.push({definition,facing});
+firing.weapons[0].runtime.fire(firing.weapons[0].effective,{x:0,y:-1});
 assert.equal(shots.length,1,'base laser has one projectile');
 shots.length=0;
 firing.applyUpgrade(definition.id,'effect');
-firing.projectileBehavior.fire(firing.weapons[0].effective,{x:0,y:-1});
+firing.weapons[0].runtime.fire(firing.weapons[0].effective,{x:0,y:-1});
 assert.equal(shots.length,2,'effect adds exactly one projectile');
 assert(Math.abs(shots[0].facing.x+Math.sin(Math.PI/24))<1e-12);
 assert(Math.abs(shots[0].facing.y+Math.cos(Math.PI/24))<1e-12);
@@ -68,7 +69,7 @@ console.log('Passed: single base shot, extra 15-degree shot, and unchanged per-p
 for(let tier=2;tier<=5;tier++) {
   assert(firing.applyUpgrade(definition.id,'effect'));
   shots.length=0;
-  firing.projectileBehavior.fire(firing.weapons[0].effective,{x:1,y:0});
+  firing.weapons[0].runtime.fire(firing.weapons[0].effective,{x:1,y:0});
   assert.equal(shots.length,tier+1);
   shots.forEach((shot,index)=>assert(Math.abs(Math.atan2(shot.facing.y,shot.facing.x)*180/Math.PI-(index-tier/2)*15)<1e-10));
 }

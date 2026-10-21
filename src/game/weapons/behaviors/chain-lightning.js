@@ -5,6 +5,8 @@ export class ChainLightning {
     this.scene = scene; this.player = player;
     this.chainPool = []; this.activeChains = []; this.candidates = [];
   }
+  fire(definition, _facing, enemies) { if (enemies) this.fireChainLightning(definition, enemies); }
+  update(delta, enemies) { this.updateChain(delta, enemies); }
   get activeChain() { return this.activeChains[0] ?? null; }
   fireChainLightning(definition, enemies) {
     if (this.activeChains.length) return;
@@ -75,6 +77,12 @@ export class ChainLightning {
     chain.graphic.graphics.clear().setVisible(false);
     chain.graphic.inUse=false;
     this.activeChains.splice(this.activeChains.indexOf(chain),1);
+  }
+  destroy() {
+    for (const item of this.chainPool) item.graphics.destroy();
+    this.chainPool.length = 0;
+    this.activeChains.length = 0;
+    this.candidates.length = 0;
   }
   reset() {
     for (const item of this.chainPool) { item.graphics.clear().setVisible(false); item.inUse = false; }

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "files": [
+    "./basic-laser.json",
+    "./chain-lightning.json"
+  ],
+  "maxEquippedWeapons": 6,
+  "startingWeapons": [
+    "chain-lightning"
+  ]
+}

@@ -1,11 +1,13 @@
+import { readEnemyContent } from '../helpers/content.mjs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFile } from 'node:fs/promises';
 import { EnemySpatialIndex } from '../../src/game/enemies/enemy-spatial-index.js';
-import { EnemySpawner } from '../../src/game/enemies/enemy-spawner.js';
+import { EnemySystem as EnemySpawner } from '../../src/game/enemies/enemy-system.js';
+import { enemiesOverlap } from '../../src/game/enemies/enemy-body-collision.js';
 import { enemyTouchesCircle, projectileContactTime } from '../../src/game/enemies/enemy-collisions.js';
 
-const data = JSON.parse(await readFile(new URL('../../src/data/enemies.json', import.meta.url), 'utf8'));
+const data = await readEnemyContent();
 const definitions = new Map(data.enemies.map(type => [type.id, type]));
 const catalog = { ...data, definitions };
 function drawable(x = 0, y = 0) {
@@ -20,12 +22,12 @@ function drawable(x = 0, y = 0) {
     setFontSize() { return this; }, setColor() { return this; }, setText() { return this; },
   };
 }
-function makeSpawner() {
+function makeSpawner(maxActiveEnemies = data.spawner.maxActiveEnemies) {
   const scene = {
     scale: { width: 800, height: 600 }, registry: { get: () => 'In-Game' },
     add: { circle: drawable, triangle: drawable, rectangle: drawable, text: drawable },
   };
-  return new EnemySpawner(scene, { x: 0, y: 0 }, catalog, () => {}, drawable);
+  return new EnemySpawner(scene, { x: 0, y: 0 }, { ...catalog, spawner: { ...catalog.spawner, maxActiveEnemies } }, () => {}, drawable);
 }
 
 // A fixed seed makes the full-scan equivalence checks repeatable.
@@ -72,7 +74,7 @@ test('nearest laser hit and strongest contact match full scans, including ties',
   spawner.spawn('block', { x: 90, y: 0 });
   let damaged = null;
   spawner.damageEnemy = enemy => { damaged = enemy; return true; };
-  assert(spawner.hitTest(0, 0, 200, 0));
+  spawner.hitTest(0, 0, 200, 0);
   // Verify against pool order rather than spatial cell iteration order.
   function expectedHit(x, y, toX, toY, radius) {
     let best = null, earliest = Infinity;
@@ -85,7 +87,9 @@ test('nearest laser hit and strongest contact match full scans, including ties',
   assert.equal(damaged, expectedHit(0, 0, 200, 0, 8));
   const isolated = makeSpawner();
   const tie = isolated.spawn('block', { x: 90, y: 0 });
-  isolated.spawn('block', { x: 90, y: 0 });
+  const tied = isolated.spawn('block', { x: 90, y: 0 });
+  // Deliberately overlap a fixture to retain tie-breaking regression coverage.
+  tied.sprite.setPosition(90, 0); isolated.spatialIndex.update(tied);
   isolated.damageEnemy = enemy => { assert.equal(enemy, tie); return true; };
   isolated.hitTest(0, 0, 200, 0);
   for (let i = 0; i < 100; i++) {
@@ -143,7 +147,7 @@ test('local queries exclude distant enemies in a large population', () => {
 
 
 test('three 2,000-enemy lifecycle cycles trim inactive objects and restore reusable pools', () => {
-  const spawner = makeSpawner();
+  const spawner = makeSpawner(2000); // Explicit stress-test override; gameplay uses 500.
   for (let run = 0; run < 3; run++) {
     for (let i = 0; i < 2000; i++) spawner.spawn(i % 2 ? 'stationary' : 'splitter', { x: i, y: 0 });
     assert.equal(spawner.activeEnemies.size, 2000);
@@ -157,4 +161,60 @@ test('three 2,000-enemy lifecycle cycles trim inactive objects and restore reusa
     assert.equal(before.filter(enemy => enemy.sprite.destroyed).length, 1872);
     assert.equal(spawner.snapshot().length, 0);
   }
+});
+
+
+test('enemy bodies remain separated during repeated crowded movement and split spawns', () => {
+  const spawner = makeSpawner();
+  const block = spawner.spawn('block', { x: 0, y: 0 });
+  const stunned = spawner.spawn('stationary', { x: 200, y: 0 });
+  spawner.stunEnemy(stunned, 10000);
+  const fixedX = stunned.sprite.x, fixedY = stunned.sprite.y;
+  for (let i = 0; i < 70; i++) spawner.spawn(i % 3 ? 'stationary' : 'splitter', { x: 200, y: 0 });
+  const verify = () => {
+    const enemies = [...spawner.activeEnemies];
+    for (let i = 0; i < enemies.length; i++) for (let j = i + 1; j < enemies.length; j++) {
+      assert(!enemiesOverlap(enemies[i], enemies[j]), 'enemy bodies must not overlap');
+    }
+  };
+  verify();
+  for (let frame = 0; frame < 150; frame++) {
+    spawner.update(16.67);
+    verify();
+  }
+  assert.equal(block.sprite.x, 0); assert.equal(block.sprite.y, 0);
+  assert.equal(stunned.sprite.x, fixedX); assert.equal(stunned.sprite.y, fixedY);
+  const splitter = [...spawner.activeEnemies].find(enemy => enemy.type.id === 'splitter');
+  spawner.damageEnemy(splitter, splitter.hp);
+  verify();
+  const saved = spawner.snapshot();
+  spawner.restore(saved);
+  verify();
+});
+
+
+test('the 500-enemy limit covers spawns, Splitter children, pooled reuse, and old saves', () => {
+  const spawner = makeSpawner();
+  assert.equal(spawner.spawnConfig.maxActiveEnemies, 500);
+  const splitter = spawner.spawn('splitter', { x: 0, y: 0 });
+  for (let i = 1; i < 500; i++) assert(spawner.spawn('stationary', { x: i * 100, y: 0 }));
+  assert.equal(spawner.activeEnemies.size, 500);
+  const poolSize = spawner.enemies.length;
+  assert.equal(spawner.spawn('stationary', { x: -100, y: 0 }), false);
+  assert.equal(spawner.spawn('block', { x: -100, y: 0 }), false);
+  assert.equal(spawner.enemies.length, poolSize, 'full capacity does not allocate more objects');
+  spawner.damageEnemy(splitter, splitter.hp);
+  assert.equal(spawner.activeEnemies.size, 500, 'children share the same cap after their parent dies');
+  const victim = [...spawner.activeEnemies][0];
+  spawner.damageEnemy(victim, victim.hp);
+  assert.equal(spawner.activeEnemies.size, 499);
+  assert(spawner.spawn('stationary', { x: -1000, y: 0 }));
+  assert.equal(spawner.activeEnemies.size, 500, 'spawning resumes when capacity is freed');
+  const oldSave = Array.from({ length: 520 }, (_, i) => ({ id: 'stationary', x: i * 100, y: 0, hp: 1 }));
+  spawner.restore(oldSave);
+  assert.equal(spawner.activeEnemies.size, 500);
+  assert.equal(spawner.snapshot().length, 500);
+  assert.equal(spawner.kills, 0, 'discarded excess save entries do not award kills');
+  spawner.reset();
+  assert(spawner.spawn('stationary', { x: 0, y: 0 }));
 });

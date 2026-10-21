@@ -1,10 +1,12 @@
+import { validateStatDefinitions } from '../../src/game/stats/stat-block.js';
 import { readFile } from 'node:fs/promises';
 import { validatePlayerConfig } from '../../src/game/player/player-config.js';
 import assert from 'node:assert/strict';
 import { PlayerHealth, circlesOverlap } from '../../src/game/player/player-health.js';
 import { validateCheckpoint } from '../../src/storage/save-schema.js';
 
-const config = validatePlayerConfig(JSON.parse(await readFile(new URL('../../src/data/player.json', import.meta.url), 'utf8')));
+const rules = validateStatDefinitions(JSON.parse(await readFile(new URL('../../src/content/stats.json', import.meta.url), 'utf8')));
+const config = validatePlayerConfig(JSON.parse(await readFile(new URL('../../src/content/player.json', import.meta.url), 'utf8')), rules);
 const health = new PlayerHealth(config.stats);
 assert.equal(health.hp, 10);
 assert(health.takeDamage(1));
@@ -41,5 +43,5 @@ const stronger = new PlayerHealth({...config.stats, maxHitpoints: 20, contactInv
 assert.equal(stronger.hp, 20);
 stronger.takeDamage(1);
 assert.equal(stronger.invulnerabilityMs, 200);
-assert.throws(()=>validatePlayerConfig({...config, stats:{...config.stats,movementSpeedPixelsPerSecond:-1}}));
+assert.throws(()=>validatePlayerConfig({...config, stats:{...config.stats,movementSpeedPixelsPerSecond:-1}}, rules));
 console.log('Passed: health, contact boundaries, cooldown, lethal damage, reset, checkpoint restore and validation.');

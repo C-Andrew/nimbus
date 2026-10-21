@@ -11,8 +11,8 @@ export class EnemySpatialIndex {
     for (const { appearance } of definitions.values()) {
       const halfWidth = appearance.shape === 'circle' ? appearance.radiusPixels : appearance.widthPixels / 2;
       const halfHeight = appearance.shape === 'circle' ? appearance.radiusPixels : appearance.heightPixels / 2;
-      this.halfWidth = Math.max(this.halfWidth, halfWidth);
-      this.halfHeight = Math.max(this.halfHeight, halfHeight);
+      this.halfWidth = Math.max(this.halfWidth, halfWidth + (appearance.strokeWidthPixels ?? 0) / 2);
+      this.halfHeight = Math.max(this.halfHeight, halfHeight + (appearance.strokeWidthPixels ?? 0) / 2);
       if (appearance.shape === 'triangle') {
         // The existing sweep expands edge planes, producing mitered corners.
         // Their tips extend farther than one projectile radius beyond the body.

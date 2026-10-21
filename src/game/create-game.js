@@ -6,7 +6,8 @@ export function createGame(parent, catalogs, onReady) {
   return new Phaser.Game({
     type: Phaser.AUTO, parent, backgroundColor: '#10151c',
     antialias: true,
-    roundPixels: true,
+    // World movement stays subpixel-smooth; native HTML HUD text is independently sharp.
+    roundPixels: false,
     fps: { target: 60, limit: 60 },
     scale: { mode: Phaser.Scale.RESIZE, width: parent.clientWidth, height: parent.clientHeight },
     scene: PlayScene,

@@ -1,14 +1,13 @@
+import { StatBlock } from '../stats/stat-block.js';
+
 /** Validate configuration at the boundary; runtime code consumes one catalog. */
-export function validatePlayerConfig(config) {
+export function validatePlayerConfig(config, statDefinitions) {
   if (config?.schemaVersion !== 1 || config.id !== 'player' || typeof config.name !== 'string' || typeof config.description !== 'string') {
     throw new Error('Invalid player catalog');
   }
-  const { stats, initialPosition, initialFacing, controls, appearance } = config;
-  const positive = value => Number.isFinite(value) && value > 0;
+  const { initialPosition, initialFacing, controls, appearance } = config;
+  const stats = new StatBlock(config.stats, statDefinitions).values;
   const nonnegative = value => Number.isFinite(value) && value >= 0;
-  if (!Number.isSafeInteger(stats?.maxHitpoints) || stats.maxHitpoints <= 0
-    || !positive(stats.movementSpeedPixelsPerSecond) || !positive(stats.collisionRadiusPixels)
-    || !nonnegative(stats.contactInvulnerabilityMs)) throw new Error('Invalid player stats');
   if (!Number.isFinite(initialPosition?.x) || !Number.isFinite(initialPosition?.y)
     || !Number.isFinite(initialFacing?.x) || !Number.isFinite(initialFacing?.y)
     || Math.abs(Math.hypot(initialFacing.x, initialFacing.y) - 1) > 0.001) throw new Error('Invalid player initial transform');
@@ -27,11 +26,11 @@ export function validatePlayerConfig(config) {
   Object.freeze(initialFacing);
   Object.freeze(controls);
   Object.freeze(appearance);
-  return Object.freeze(config);
+  return Object.freeze({ ...config, stats });
 }
 
-export async function loadPlayerConfig() {
-  const response = await fetch(new URL('../../data/player.json', import.meta.url));
+export async function loadPlayerConfig(statDefinitions) {
+  const response = await fetch(new URL('../../content/player.json', import.meta.url));
   if (!response.ok) throw new Error(`Player catalog failed to load: ${response.status}`);
-  return validatePlayerConfig(await response.json());
+  return validatePlayerConfig(await response.json(), statDefinitions);
 }

@@ -1,0 +1,37 @@
+{
+  "id": "splitter",
+  "name": "Splitter",
+  "description": "A four-hitpoint enemy that releases four Chasers close to its death position.",
+  "behavior": {
+    "type": "chase-player",
+    "description": "Moves toward the player. On death, spawns four nearby Chasers."
+  },
+  "stats": {
+    "maxHitpoints": 3,
+    "baseDamage": 1,
+    "movementSpeedPixelsPerSecond": 40
+  },
+  "appearance": {
+    "shape": "triangle",
+    "color": "#50c878",
+    "strokeColor": "#b1f5c6",
+    "strokeWidthPixels": 3,
+    "showHitpoints": true,
+    "hitpointTextColor": "#10151c",
+    "hitpointFontSizePixels": 12,
+    "widthPixels": 44,
+    "heightPixels": 44
+  },
+  "rewards": {
+    "xp": {
+      "min": 1,
+      "max": 5
+    }
+  },
+  "onDeath": {
+    "type": "spawn-enemies",
+    "enemyTypeId": "stationary",
+    "count": 3,
+    "radiusPixels": 40
+  }
+}
