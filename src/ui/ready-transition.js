@@ -48,10 +48,10 @@ export function animateReadyExit(ui) {
   }
 }
 
-/** Pause overlays enter/exit through the top, independent of paused gameplay. */
+/** Only the pause overlay moves; the shared gameplay HUD and Resume control stay fixed. */
 export function animatePauseUi(ui, entering) {
   if (typeof window === 'undefined' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  for (const element of [document.querySelector('header'),ui.gameState,ui.saveStatus,ui.pauseActions,ui.pauseButton]) {
+  for (const element of [ui.pauseActions]) {
     if (!element?.animate || element.hidden) continue;
     const rect=element.getBoundingClientRect();
     const top=`translateY(${-rect.bottom-16}px)`;

@@ -37,3 +37,46 @@ assert.equal(changes.at(-1).totalXp,0);
 live.restore({currentXp:50,totalXp:250,level:2,xpPerLevel:100});
 assert.equal(changes.at(-1).level,2, 'recovery immediately notifies the HUD');
 console.log('Passed: immediate progression display notifications for awards, level-ups, resets, and restore.');
+
+const curve = { xpPerLevel: 100, xpIncreasePerLevel: 25 };
+const increasingChanges = [];
+const increasing = new RunProgression(curve, value => increasingChanges.push(value));
+assert.equal(increasing.addXp(100), 1);
+assert.equal(increasing.xpPerLevel, 125);
+assert.equal(increasing.addXp(124), 0);
+assert.equal(increasing.addXp(1), 1);
+assert.equal(increasing.xpPerLevel, 150);
+assert.equal(increasing.currentXp, 0);
+assert.equal(increasing.addXp(200), 1);
+assert.deepEqual(increasing.snapshot(), {
+  currentXp: 50, totalXp: 425, level: 3, xpPerLevel: 175, curve,
+});
+assert.equal(increasingChanges.at(-1).xpPerLevel, 175, 'HUD receives the updated threshold');
+const recovered = new RunProgression(curve);
+recovered.restore(increasing.snapshot());
+assert.deepEqual(recovered.snapshot(), increasing.snapshot());
+assert.equal(recovered.addXp(125), 1, 'recovery continues the saved curve');
+assert.equal(recovered.xpPerLevel, 200);
+assert(!isValidRunProgression({ ...increasing.snapshot(), xpPerLevel: 100 }));
+assert(!isValidRunProgression({ ...increasing.snapshot(), curve: { ...curve, xpIncreasePerLevel: -1 } }));
+assert(!isValidRunProgression({ ...increasing.snapshot(), curve: null }));
+assert.throws(() => new RunProgression({ ...curve, xpIncreasePerLevel: 0.5 }));
+
+const multiple = new RunProgression(curve);
+assert.equal(multiple.addXp(1000), 6, 'one award crosses multiple increasing thresholds');
+assert.equal(multiple.currentXp, 25);
+assert.equal(multiple.xpPerLevel, 250);
+assert(isValidRunProgression(multiple.snapshot()));
+multiple.addXp(Number.MAX_SAFE_INTEGER - multiple.totalXp);
+assert(isValidRunProgression(multiple.snapshot()), 'large awards remain exact without per-level iteration');
+
+recovered.restore({ currentXp: 50, totalXp: 250, level: 2, xpPerLevel: 100 });
+assert.equal(recovered.addXp(50), 1, 'legacy checkpoints keep their earned levels and flat curve');
+assert.equal(recovered.xpPerLevel, 100);
+recovered.reset();
+assert.equal(recovered.addXp(100), 1);
+assert.equal(recovered.xpPerLevel, 125, 'new runs resume the configured curve');
+const retuned = new RunProgression({ xpPerLevel: 100, xpIncreasePerLevel: 50 });
+retuned.restore(increasing.snapshot());
+assert.equal(retuned.xpIncreasePerLevel, 25, 'checkpoint tuning survives a configuration change');
+console.log('Passed: increasing XP curve, dynamic HUD thresholds, multiple levels, exact arithmetic, and legacy recovery.');

@@ -1,3 +1,4 @@
+import { isValidProgressionConfig } from '../run/run-progression.js';
 import { StatBlock } from '../stats/stat-block.js';
 
 /** Validate configuration at the boundary; runtime code consumes one catalog. */
@@ -19,7 +20,7 @@ export function validatePlayerConfig(config, statDefinitions) {
     || !nonnegative(appearance.invulnerableAlpha) || appearance.invulnerableAlpha > 1
     || !Number.isInteger(appearance.lowHealthThresholdHitpoints) || appearance.lowHealthThresholdHitpoints < 0
     || appearance.lowHealthThresholdHitpoints > stats.maxHitpoints) throw new Error('Invalid player appearance');
-  if (!Number.isSafeInteger(config.progression?.xpPerLevel) || config.progression.xpPerLevel <= 0) throw new Error('Invalid player progression');
+  if (!isValidProgressionConfig(config.progression)) throw new Error('Invalid player progression');
   Object.freeze(config.progression);
   Object.freeze(stats);
   Object.freeze(initialPosition);

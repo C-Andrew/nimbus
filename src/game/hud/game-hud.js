@@ -31,7 +31,8 @@ export class GameHud {
     this.cancelHudTransition?.();
     this.setRunStatsVisible(state !== GameState.READY);
     const inGame = state === GameState.IN_GAME;
-    this.layoutRunStats(inGame);
+    const runLayout = inGame || state === GameState.PAUSED || state === GameState.RESTART;
+    this.layoutRunStats(runLayout);
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     scene.readout.setText(`${Math.round(scene.game.loop.actualFps)} FPS`);
     if (state===GameState.READY && previous===GameState.RESTART && !reducedMotion) {
@@ -64,14 +65,12 @@ export class GameHud {
       tick();
       return;
     }
-    const pauseTransition=state===GameState.PAUSED || (previous===GameState.PAUSED&&inGame);
-    if (!reducedMotion && (leavingReady||pauseTransition)) {
-      const enteringPause=state===GameState.PAUSED;
+    if (!reducedMotion && leavingReady) {
       scene.help.setVisible(true);
-      scene.help.setText(enteringPause?'Gameplay paused':'WASD / arrows · touch and hold to move');
-      const startX=18,startY=enteringPause?-scene.help.height-16:116;
-      const endX=leavingReady?-scene.help.width-16:18;
-      const endY=enteringPause?116:leavingReady?116:-scene.help.height-16;
+      scene.help.setText('WASD / arrows · touch and hold to move');
+      const startX=18,startY=116;
+      const endX=-scene.help.width-16;
+      const endY=116;
       const fpsStart=scene.readout.y,fpsEnd=inGame?24:90;
       const started=performance.now();
       const tick=()=>{
@@ -91,8 +90,8 @@ export class GameHud {
       scene.events.once('shutdown',cleanup);
       tick();
     } else {
-      scene.help.setPosition(18,116).setVisible(!inGame);
-      scene.readout.setPosition(18,inGame?24:90);
+      scene.help.setPosition(18,116).setVisible(!runLayout);
+      scene.readout.setPosition(18,runLayout?24:90);
     }
   }
   renderProgression({ level, currentXp, totalXp, xpPerLevel }) {
@@ -116,7 +115,8 @@ export class GameHud {
   resize() {
     const scene = this.scene;
     const { width } = scene.scale;
-    this.layoutRunStats(scene.registry.get('state') === GameState.IN_GAME);
+    const state = scene.registry.get('state');
+    this.layoutRunStats(state === GameState.IN_GAME || state === GameState.PAUSED || state === GameState.RESTART);
     const spacing = Math.min(44, (width-36)/this.weaponSlots.length);
     this.weaponSlots.forEach((slot,index)=>{
       slot.frame.setPosition(18+spacing/2+index*spacing,scene.scale.height-32);

@@ -49,7 +49,7 @@ export function createPlayScene({ playerConfig, weaponCatalog, enemyCatalog, sta
       this.weapons = new WeaponSystem(this, this.player, weaponCatalog);
       this.playerInput = new PlayerInput(this, playerConfig);
       this.hud = new GameHud(this, playerConfig);
-      this.progression = new RunProgression(playerConfig.progression.xpPerLevel, value => this.renderProgression(value));
+      this.progression = new RunProgression(playerConfig.progression, value => this.renderProgression(value));
       this.renderHealth();
       this.drawGrid();
       this.spawnReadyTargets();

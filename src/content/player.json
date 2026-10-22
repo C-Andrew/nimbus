@@ -30,6 +30,7 @@
     "lowHealthThresholdHitpoints": 3
   },
   "progression": {
-    "xpPerLevel": 100
+    "xpPerLevel": 100,
+    "xpIncreasePerLevel": 25
   }
 }
